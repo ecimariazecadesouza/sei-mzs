@@ -145,18 +145,22 @@ const Dashboard: React.FC = () => {
               <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-50 px-2 py-1 rounded">Critério: Soma ≥ 24</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex flex-col justify-center items-center text-center">
-                <span className="text-3xl font-black text-emerald-600">{stats.academic.aprovados}</span>
-                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mt-1">Aprovados</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex flex-col justify-center items-center text-center">
+                <span className="text-2xl font-black text-emerald-600">{stats.academic.aprovados}</span>
+                <span className="text-[9px] font-black text-emerald-800 uppercase tracking-widest mt-1">Aprovados</span>
               </div>
-              <div className="p-5 rounded-2xl bg-red-50 border border-red-100 flex flex-col justify-center items-center text-center">
-                <span className="text-3xl font-black text-red-600">{stats.academic.recuperacao}</span>
-                <span className="text-[10px] font-black text-red-800 uppercase tracking-widest mt-1">Recuperação</span>
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex flex-col justify-center items-center text-center">
+                <span className="text-2xl font-black text-amber-600">{stats.academic.emCurso}</span>
+                <span className="text-[9px] font-black text-amber-800 uppercase tracking-widest mt-1">Em Curso</span>
               </div>
-              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-100 flex flex-col justify-center items-center text-center">
-                <span className="text-3xl font-black text-amber-600">{stats.academic.emCurso}</span>
-                <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest mt-1">Em Curso</span>
+              <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex flex-col justify-center items-center text-center">
+                <span className="text-2xl font-black text-indigo-600">{stats.academic.recuperacao}</span>
+                <span className="text-[9px] font-black text-indigo-800 uppercase tracking-widest mt-1">Recuperação</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex flex-col justify-center items-center text-center">
+                <span className="text-2xl font-black text-red-600">{stats.academic.retidos}</span>
+                <span className="text-[9px] font-black text-red-800 uppercase tracking-widest mt-1">Retidos</span>
               </div>
             </div>
             <div className="mt-6 flex items-start gap-2 p-4 bg-slate-50 rounded-xl border border-slate-100">

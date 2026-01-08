@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSchool } from '../context/SchoolContext';
-import { Student } from '../types';
+import { Student, AcademicYearConfig } from '../types';
 import jsPDF from 'jspdf';
 
 // Função para converter links do Google Drive em links diretos de imagem
@@ -77,7 +77,10 @@ const formatGradeInput = (value: string): string => {
 
 const roundOne = (num: number) => Math.round(num * 10) / 10;
 
-const calculateRowStats = (row: GradeRow) => {
+const calculateRowStats = (row: GradeRow, year: string, academicYears: AcademicYearConfig[]) => {
+  const config = academicYears.find(y => y.year === year);
+  const now = new Date();
+
   const v1 = parseFloat(row.b1);
   const v2 = parseFloat(row.b2);
   const v3 = parseFloat(row.b3);
@@ -102,22 +105,51 @@ const calculateRowStats = (row: GradeRow) => {
   }
   const mfString = roundOne(mfValue).toFixed(1);
   const mfNum = parseFloat(mfString);
+
+  // Lógica de Situação Baseada em Prazos
   let situation = "Em curso";
   let sitColor = "bg-slate-100 text-slate-500 border-slate-200";
-  if (validBims.length === 4) {
+
+  const getDeadline = (dateStr: string | undefined) => dateStr ? new Date(dateStr + 'T23:59:59') : null;
+
+  const b1Deadline = getDeadline(config?.b1End);
+  const b2Deadline = getDeadline(config?.b2End);
+  const b3Deadline = getDeadline(config?.b3End);
+  const b4Deadline = getDeadline(config?.b4End);
+  const recDeadline = getDeadline(config?.recEnd);
+
+  // Verificação de Bimestres Individuais (Pendente se faltar nota após prazo)
+  if (b1Deadline && now > b1Deadline && isNaN(v1)) situation = "Pendente";
+  else if (b2Deadline && now > b2Deadline && isNaN(v2)) situation = "Pendente";
+  else if (b3Deadline && now > b3Deadline && isNaN(v3)) situation = "Pendente";
+  else if (b4Deadline && now > b4Deadline && isNaN(v4)) situation = "Pendente";
+
+  if (situation === "Pendente") {
+    sitColor = "bg-orange-50 text-orange-700 border-orange-100";
+  } else if (validBims.length === 4) {
     if (mg < 6 && isNaN(rf)) {
-      situation = "Recuperação";
-      sitColor = "bg-amber-50 text-amber-700 border-amber-100";
+      if (recDeadline && now > recDeadline) {
+        situation = "Retido";
+        sitColor = "bg-red-50 text-red-700 border-red-100";
+      } else {
+        situation = "Recuperação";
+        sitColor = "bg-amber-50 text-amber-700 border-amber-100";
+      }
     } else {
       if (mfNum >= 5.0) {
         situation = "Aprovar";
         sitColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
       } else {
-        situation = "Reprovar";
+        situation = "Retido";
         sitColor = "bg-red-50 text-red-700 border-red-100";
       }
     }
+  } else if (b4Deadline && now > b4Deadline && validBims.length < 4) {
+    // Se passou do 4º bimestre e ainda faltam notas
+    situation = "Retido";
+    sitColor = "bg-red-50 text-red-700 border-red-100";
   }
+
   let performance = "-";
   let perfColor = "text-slate-300";
   if (validBims.length > 0) {
@@ -448,7 +480,7 @@ const GradeManagement: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredGradeRows.map((row) => {
-                      const stats = calculateRowStats(row);
+                      const stats = calculateRowStats(row, selectedYear, data.academicYears);
                       return (
                         <tr key={row.studentId} className="group hover:bg-slate-50 transition-colors">
                           {/* Protagonista com espaçamento generoso para evitar sobreposição no PDF */}

@@ -1,9 +1,9 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { 
-  SchoolData, Student, Teacher, Subject, Class, 
-  Assignment, Grade, FormationType, KnowledgeArea, SubArea, SchoolSettings, AppUser, UserRole
+import {
+  SchoolData, Student, Teacher, Subject, Class,
+  Assignment, Grade, FormationType, KnowledgeArea, SubArea, SchoolSettings, AppUser, UserRole, AcademicYearConfig
 } from '../types';
 
 const DEFAULT_SCHOOL_LOGO = 'https://i.postimg.cc/1tVz9RY5/Logo-da-Escola-v5-ECIT.png';
@@ -48,7 +48,8 @@ const TABLE_MAP: Record<string, string> = {
   knowledgeAreas: 'knowledge_areas',
   subAreas: 'sub_areas',
   settings: 'settings',
-  users: 'users'
+  users: 'users',
+  academicYears: 'academic_years'
 };
 
 export interface SchoolContextType {
@@ -79,6 +80,7 @@ export interface SchoolContextType {
   bulkUpdateGrades: (grades: any[]) => Promise<void>;
   deleteItem: (type: keyof SchoolData, id: string) => Promise<void>;
   updateSettings: (s: Partial<SchoolSettings>) => Promise<void>;
+  updateAcademicYearConfig: (config: AcademicYearConfig) => Promise<void>;
   addUser: (u: Omit<AppUser, 'id'>) => Promise<void>;
   createFirstAdmin: (u: { name: string, email: string }) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -96,13 +98,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     students: [], teachers: [], subjects: [], classes: [],
     assignments: [], grades: [], formations: [], knowledgeAreas: [], subAreas: [],
     users: [],
+    academicYears: [],
     settings: {
       schoolLogo: localStorage.getItem('sei_school_logo') || DEFAULT_SCHOOL_LOGO,
       systemLogo: localStorage.getItem('sei_system_logo') || DEFAULT_SYSTEM_LOGO,
       schoolName: localStorage.getItem('sei_school_name') || 'Sistema Escolar Integrado - SEI'
     }
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -118,7 +121,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           const { data: resData, error } = await supabase.from(tableName).select('*');
           if (error) {
             if (error.code === 'PGRST116' || error.message.includes('not found')) {
-               throw new Error(`Tabela '${tableName}' não encontrada.`);
+              throw new Error(`Tabela '${tableName}' não encontrada.`);
             }
             throw error;
           }
@@ -127,17 +130,24 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       );
 
       let foundCriticalError = false;
-      results.forEach((result) => {
+      results.forEach((result, index) => {
+        const [stateKey, tableName] = tables[index];
         if (result.status === 'fulfilled') {
-          const { stateKey, data: resData } = result.value;
+          const { data: resData } = result.value;
           const items = (resData || []).map(toCamel);
           if (stateKey === 'settings' && items.length > 0) {
             newData.settings = items[0];
           } else {
-            newData[stateKey] = items;
+            newData[stateKey as keyof SchoolData] = items;
           }
         } else {
           const error = result.reason as any;
+          console.group(`Erro de Conexão: ${tableName}`);
+          console.error("Mensagem:", error.message);
+          console.error("Detalhes:", error.details);
+          console.error("Hint:", error.hint);
+          console.groupEnd();
+
           if (error.message.includes('users')) {
             setDbError('MISSING_USERS_TABLE');
             foundCriticalError = true;
@@ -172,11 +182,11 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const formattedName = name.trim().toUpperCase();
     const { error } = await supabase.from('users').update({ name: formattedName }).eq('id', currentUser.id);
     if (error) throw error;
-    
+
     const updatedUser = { ...currentUser, name: formattedName };
     setCurrentUser(updatedUser);
     localStorage.setItem('sei_session', JSON.stringify(updatedUser));
-    
+
     // Atualiza também na lista local
     setData(prev => ({
       ...prev,
@@ -206,7 +216,55 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setData(prev => ({ ...prev, settings: newSettings }));
     try {
       await supabase.from('settings').upsert({ id: 1, ...toSnake(newSettings) });
-    } catch (e) {}
+    } catch (e) { }
+  };
+
+  const updateAcademicYearConfig = async (config: AcademicYearConfig) => {
+    // Função para validar se a data é razoável (evita anos como 42026)
+    const validateDate = (dateStr: string | null) => {
+      if (!dateStr) return null;
+      const year = parseInt(dateStr.split('-')[0]);
+      if (year < 2000 || year > 2100) return null;
+      return dateStr;
+    };
+
+    const sanitizedConfig = {
+      year: config.year,
+      b1End: validateDate(config.b1End),
+      b2End: validateDate(config.b2End),
+      b3End: validateDate(config.b3End),
+      b4End: validateDate(config.b4End),
+      recStart: validateDate(config.recStart),
+      recEnd: validateDate(config.recEnd),
+    };
+
+    console.log("Saving sanitized config:", sanitizedConfig);
+
+    const { error } = await supabase
+      .from('academic_years')
+      .upsert(toSnake(sanitizedConfig), { onConflict: 'year' });
+
+    if (error) {
+      console.group("Erro ao Salvar Calendário");
+      console.error("Payload:", sanitizedConfig);
+      console.error("Erro:", error);
+      console.groupEnd();
+      throw error;
+    }
+
+    setData(prev => {
+      const exists = prev.academicYears.find(y => y.year === config.year);
+      if (exists) {
+        return {
+          ...prev,
+          academicYears: prev.academicYears.map(y => y.year === config.year ? sanitizedConfig : y)
+        } as SchoolData;
+      }
+      return {
+        ...prev,
+        academicYears: [...prev.academicYears, sanitizedConfig]
+      } as SchoolData;
+    });
   };
 
   const genericAdd = async (tableKey: keyof SchoolData, item: any) => {
@@ -261,8 +319,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addStudent, updateStudent, addTeacher, updateTeacher,
     addSubject, updateSubject, addClass, updateClass,
     addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
-    addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades, 
-    deleteItem, updateSettings, addUser, createFirstAdmin,
+    addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades,
+    deleteItem, updateSettings, updateAcademicYearConfig, addUser, createFirstAdmin,
     refreshData: fetchData
   }), [data, loading, dbError, currentUser]);
 

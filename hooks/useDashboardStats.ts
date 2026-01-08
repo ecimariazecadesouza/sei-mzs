@@ -23,35 +23,69 @@ export const useDashboardStats = (filterYear: string) => {
         let aprovados = 0;
         let recuperacao = 0;
         let emCurso = 0;
+        let retidos = 0;
 
         const activeStudents = studentsOfYear.filter(s => ['cursando', 'ativo'].includes(normalize(s.status || 'cursando')));
 
         activeStudents.forEach(student => {
             const studentClass = classesOfYear.find(c => String(c.id) === String(student.classId));
+            const config = data.academicYears.find(y => y.year === filterYear);
+            const now = new Date();
+
             if (!studentClass || !studentClass.subjectIds || studentClass.subjectIds.length === 0) {
                 emCurso++;
                 return;
             }
 
             const subjectsInClass = data.subjects.filter(s => studentClass.subjectIds?.includes(s.id));
-            let isFailingAny = false;
-            let isPendingAny = false;
+
+            let studentFinalStatus = "Aprovado"; // Assume aprovado até provar o contrário
+            let isPendingByDeadlines = false;
+            let isFailedByDeadlines = false;
+            let isAtRecovery = false;
 
             subjectsInClass.forEach(sub => {
                 const grades = data.grades.filter(g => g.studentId === student.id && g.subjectId === sub.id);
                 const bims = [1, 2, 3, 4].map(t => grades.find(g => g.term === t)?.value);
+                const rf = grades.find(g => g.term === 5)?.value;
                 const validBims = bims.filter(v => v !== undefined && v !== null) as number[];
 
-                if (validBims.length < 4) {
-                    isPendingAny = true;
-                } else {
-                    const sum = validBims.reduce((a, b) => a + b, 0);
-                    if (sum < 24) isFailingAny = true;
+                const b1End = config?.b1End ? new Date(config.b1End + 'T23:59:59') : null;
+                const b2End = config?.b2End ? new Date(config.b2End + 'T23:59:59') : null;
+                const b3End = config?.b3End ? new Date(config.b3End + 'T23:59:59') : null;
+                const b4End = config?.b4End ? new Date(config.b4End + 'T23:59:59') : null;
+                const recEnd = config?.recEnd ? new Date(config.recEnd + 'T23:59:59') : null;
+
+                // Lógica de Pendência
+                const isPendingSub = (b1End && now > b1End && bims[0] === undefined) ||
+                    (b2End && now > b2End && bims[1] === undefined) ||
+                    (b3End && now > b3End && bims[2] === undefined) ||
+                    (b4End && now > b4End && bims[3] === undefined);
+
+                if (isPendingSub) isPendingByDeadlines = true;
+
+                // Lógica de Retenção e Recuperação
+                if (validBims.length === 4) {
+                    const points = validBims.reduce((a, b) => a + b, 0);
+                    const mg = points / 4;
+                    if (mg < 6) {
+                        if (rf !== undefined && rf !== null) {
+                            const mf = (mg * 6 + rf * 4) / 10;
+                            if (mf < 5.0) isFailedByDeadlines = true;
+                        } else if (recEnd && now > recEnd) {
+                            isFailedByDeadlines = true;
+                        } else {
+                            isAtRecovery = true;
+                        }
+                    }
+                } else if (b4End && now > b4End) {
+                    isFailedByDeadlines = true;
                 }
             });
 
-            if (isPendingAny) emCurso++;
-            else if (isFailingAny) recuperacao++;
+            if (isFailedByDeadlines) retidos++;
+            else if (isAtRecovery) recuperacao++;
+            else if (isPendingByDeadlines) emCurso++;
             else aprovados++;
         });
 
@@ -66,7 +100,7 @@ export const useDashboardStats = (filterYear: string) => {
         return {
             totalStudents,
             statusCounts,
-            academic: { aprovados, recuperacao, emCurso },
+            academic: { aprovados, recuperacao, emCurso, retidos },
             globalAverage,
             activeClassesCount: classesOfYear.length,
             activeSubjectsCount: data.subjects.filter(s => String(s.year) === filterYear).length

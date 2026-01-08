@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSchool, formatImageUrl } from '../context/SchoolContext';
+import { AcademicYearConfig } from '../types';
+import MaskedDateInput from '../components/common/MaskedDateInput';
 
 const Settings: React.FC = () => {
-  const { data, updateSettings, currentUser, updateProfile } = useSchool();
+  const { data, updateSettings, currentUser, updateProfile, updateAcademicYearConfig } = useSchool();
   const { schoolLogo, systemLogo } = data.settings;
-  const [showUrlInput, setShowUrlInput] = useState<{school: boolean, system: boolean}>({ school: false, system: false });
+  const [showUrlInput, setShowUrlInput] = useState<{ school: boolean, system: boolean }>({ school: false, system: false });
   const [tempUrl, setTempUrl] = useState('');
-  
+
   // Perfil State
   const [profileName, setProfileName] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -54,6 +55,38 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Calendar State Local
+  const [localCalendar, setLocalCalendar] = useState<AcademicYearConfig[]>([]);
+  const [savingYear, setSavingYear] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data.academicYears) setLocalCalendar(data.academicYears);
+  }, [data.academicYears]);
+
+  const handleLocalCalendarChange = (year: string, field: string, value: string) => {
+    console.log(`Alterando ${field} de ${year} para: ${value}`);
+    setLocalCalendar(prev => {
+      const exists = prev.find(y => y.year === year);
+      if (exists) return prev.map(y => y.year === year ? { ...y, [field]: value } : y);
+      return [...prev, { year, b1End: '', b2End: '', b3End: '', b4End: '', recStart: '', recEnd: '', [field]: value } as AcademicYearConfig];
+    });
+  };
+
+  const saveCalendarByYear = async (year: string) => {
+    const config = localCalendar.find(y => y.year === year);
+    if (!config) return;
+    setSavingYear(year);
+    try {
+      await updateAcademicYearConfig(config);
+      alert(`Calendário de ${year} salvo com sucesso!`);
+    } catch (e: any) {
+      console.error("Falha no salvamento:", e);
+      alert(`Erro ao salvar: ${e.message || 'Verifique sua conexão'}`);
+    } finally {
+      setSavingYear(null);
+    }
+  };
+
   return (
     <div className="space-y-10 max-w-4xl mx-auto pb-20 animate-in fade-in duration-500">
       <div>
@@ -65,43 +98,43 @@ const Settings: React.FC = () => {
       <div className="bg-white p-10 rounded-[40px] border border-indigo-50 shadow-sm space-y-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
         <div className="relative z-10 flex items-center gap-6">
-            <div className="w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white text-3xl shadow-xl shadow-indigo-100 font-black">
-                {currentUser?.name.substring(0, 1)}
-            </div>
-            <div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Informações Pessoais</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Como você aparece no sistema</p>
-            </div>
+          <div className="w-20 h-20 bg-indigo-600 rounded-[28px] flex items-center justify-center text-white text-3xl shadow-xl shadow-indigo-100 font-black">
+            {currentUser?.name.substring(0, 1)}
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Informações Pessoais</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Como você aparece no sistema</p>
+          </div>
         </div>
 
         <form onSubmit={handleUpdateProfile} className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-            <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu Nome de Exibição</label>
-                <input 
-                    required
-                    value={profileName} 
-                    onChange={e => setProfileName(e.target.value)}
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-indigo-200 font-bold text-slate-700 transition-all uppercase"
-                />
-                <p className="text-[9px] text-slate-400 font-medium italic ml-1">Ajuste seu nome para evitar que o sobrenome seja cortado no menu.</p>
-            </div>
-            <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail (Somente Leitura)</label>
-                <input 
-                    disabled
-                    value={currentUser?.email} 
-                    className="w-full p-4 bg-slate-100 border border-slate-50 rounded-2xl text-slate-400 font-bold outline-none cursor-not-allowed"
-                />
-            </div>
-            <div className="md:col-span-2 flex justify-end">
-                <button 
-                    type="submit" 
-                    disabled={isUpdatingProfile || profileName.toUpperCase() === currentUser?.name}
-                    className="px-12 py-4 bg-[#0A1128] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-30"
-                >
-                    {isUpdatingProfile ? 'Salvando...' : 'Salvar Perfil'}
-                </button>
-            </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu Nome de Exibição</label>
+            <input
+              required
+              value={profileName}
+              onChange={e => setProfileName(e.target.value)}
+              className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-indigo-200 font-bold text-slate-700 transition-all uppercase"
+            />
+            <p className="text-[9px] text-slate-400 font-medium italic ml-1">Ajuste seu nome para evitar que o sobrenome seja cortado no menu.</p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail (Somente Leitura)</label>
+            <input
+              disabled
+              value={currentUser?.email}
+              className="w-full p-4 bg-slate-100 border border-slate-50 rounded-2xl text-slate-400 font-bold outline-none cursor-not-allowed"
+            />
+          </div>
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={isUpdatingProfile || profileName.toUpperCase() === currentUser?.name}
+              className="px-12 py-4 bg-[#0A1128] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-30"
+            >
+              {isUpdatingProfile ? 'Salvando...' : 'Salvar Perfil'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -132,7 +165,7 @@ const Settings: React.FC = () => {
                 <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-indigo-50 transition-colors">Fazer Upload</span>
                 <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('schoolLogo')} />
               </label>
-              <button 
+              <button
                 onClick={() => openUrlInput('school')}
                 className="w-full bg-indigo-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-indigo-700 transition-colors"
               >
@@ -143,17 +176,17 @@ const Settings: React.FC = () => {
 
           {showUrlInput.school && (
             <div className="p-5 bg-indigo-50 rounded-[28px] border border-indigo-100 animate-in slide-in-from-top-4 duration-300">
-                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 block ml-1">URL da Imagem</label>
-                <div className="flex gap-2">
-                    <input 
-                      autoFocus
-                      value={tempUrl} 
-                      onChange={e => setTempUrl(e.target.value)} 
-                      placeholder="https://i.postimg.cc/..."
-                      className="flex-1 p-4 text-xs font-bold border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-inner"
-                    />
-                    <button onClick={() => handleUrlSubmit('schoolLogo')} className="bg-[#0A1128] text-white px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">OK</button>
-                </div>
+              <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 block ml-1">URL da Imagem</label>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={tempUrl}
+                  onChange={e => setTempUrl(e.target.value)}
+                  placeholder="https://i.postimg.cc/..."
+                  className="flex-1 p-4 text-xs font-bold border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-inner"
+                />
+                <button onClick={() => handleUrlSubmit('schoolLogo')} className="bg-[#0A1128] text-white px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">OK</button>
+              </div>
             </div>
           )}
         </div>
@@ -184,7 +217,7 @@ const Settings: React.FC = () => {
                 <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-purple-50 transition-colors">Fazer Upload</span>
                 <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('systemLogo')} />
               </label>
-              <button 
+              <button
                 onClick={() => openUrlInput('system')}
                 className="w-full bg-purple-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-purple-700 transition-colors"
               >
@@ -195,19 +228,79 @@ const Settings: React.FC = () => {
 
           {showUrlInput.system && (
             <div className="p-5 bg-purple-50 rounded-[28px] border border-purple-100 animate-in slide-in-from-top-4 duration-300">
-                <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-3 block ml-1">URL da Imagem</label>
-                <div className="flex gap-2">
-                    <input 
-                      autoFocus
-                      value={tempUrl} 
-                      onChange={e => setTempUrl(e.target.value)} 
-                      placeholder="https://i.postimg.cc/..."
-                      className="flex-1 p-4 text-xs font-bold border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all shadow-inner"
-                    />
-                    <button onClick={() => handleUrlSubmit('systemLogo')} className="bg-[#0A1128] text-white px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">OK</button>
-                </div>
+              <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-3 block ml-1">URL da Imagem</label>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={tempUrl}
+                  onChange={e => setTempUrl(e.target.value)}
+                  placeholder="https://i.postimg.cc/..."
+                  className="flex-1 p-4 text-xs font-bold border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all shadow-inner"
+                />
+                <button onClick={() => handleUrlSubmit('systemLogo')} className="bg-[#0A1128] text-white px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">OK</button>
+              </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm space-y-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl shadow-inner">📅</div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Calendário e Prazos</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Defina o encerramento dos bimestres e recuperação</p>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {['2025', '2026'].map(year => {
+            const config = localCalendar.find(y => y.year === year) || {
+              year, b1End: '', b2End: '', b3End: '', b4End: '', recStart: '', recEnd: ''
+            };
+
+            return (
+              <div key={year} className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-black text-slate-700">Ano Letivo {year}</h4>
+                  <button
+                    type="button"
+                    disabled={savingYear === year}
+                    onClick={() => saveCalendarByYear(year)}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {savingYear === year ? 'Salvando...' : `Salvar ${year}`}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {[1, 2, 3, 4].map(b => (
+                    <div key={b} className="space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Fim do {b}º Bimestre</label>
+                      <MaskedDateInput
+                        value={config[`b${b}End` as keyof typeof config] || ''}
+                        onChange={v => handleLocalCalendarChange(year, `b${b}End`, v)}
+                      />
+                    </div>
+                  ))}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest ml-1">Início da Recuperação Final</label>
+                    <MaskedDateInput
+                      value={config.recStart || ''}
+                      onChange={v => handleLocalCalendarChange(year, 'recStart', v)}
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest ml-1">Fim da Recuperação Final</label>
+                    <MaskedDateInput
+                      value={config.recEnd || ''}
+                      onChange={v => handleLocalCalendarChange(year, 'recEnd', v)}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

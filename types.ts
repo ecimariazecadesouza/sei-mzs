@@ -81,6 +81,16 @@ export interface SchoolSettings {
   schoolName: string;
 }
 
+export interface AcademicYearConfig {
+  year: string;
+  b1End: string;
+  b2End: string;
+  b3End: string;
+  b4End: string;
+  recStart: string;
+  recEnd: string;
+}
+
 export interface SchoolData {
   students: Student[];
   teachers: Teacher[];
@@ -93,4 +103,5 @@ export interface SchoolData {
   subAreas: SubArea[];
   settings: SchoolSettings;
   users: AppUser[];
+  academicYears: AcademicYearConfig[];
 }
