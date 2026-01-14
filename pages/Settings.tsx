@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSchool, formatImageUrl } from '../context/SchoolContext';
 import { AcademicYearConfig } from '../types';
+import { can } from '../lib/permissions';
 import MaskedDateInput from '../components/common/MaskedDateInput';
 
 const Settings: React.FC = () => {

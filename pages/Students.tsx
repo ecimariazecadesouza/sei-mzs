@@ -2,10 +2,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student } from '../types';
+import { can } from '../lib/permissions';
 import { Pencil, Trash2 } from 'lucide-react';
 
 const Students: React.FC = () => {
-  const { data, addStudent, updateStudent, deleteItem } = useSchool();
+  const { data, addStudent, updateStudent, deleteItem, currentUser } = useSchool();
 
   // UI States
   const [filterYear, setFilterYear] = useState('2026');
@@ -216,12 +217,14 @@ const Students: React.FC = () => {
           >
             <span className="text-lg">📥</span>
           </button>
-          <button
-            onClick={() => { resetForm(); setIsFormOpen(true); }}
-            className="bg-[#0A1128] text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-slate-800 transition-all active:scale-95"
-          >
-            <span>+ Novo Cadastro</span>
-          </button>
+          {currentUser && can(currentUser.role, 'create', 'students') && (
+            <button
+              onClick={() => { resetForm(); setIsFormOpen(true); }}
+              className="bg-[#0A1128] text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-slate-800 transition-all active:scale-95"
+            >
+              <span>+ Novo Cadastro</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -381,20 +384,24 @@ const Students: React.FC = () => {
                     </td>
                     <td className="px-10 py-5 text-center">{getStatusBadge(std.status || 'Cursando')}</td>
                     <td className="px-10 py-5 text-right space-x-2">
-                      <button
-                        onClick={() => startEdit(std)}
-                        className="p-3 text-indigo-500 hover:bg-indigo-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 bg-white border border-slate-100 shadow-sm"
-                        title="Editar"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ id: std.id, name: std.name })}
-                        className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 bg-white border border-slate-100 shadow-sm"
-                        title="Remover"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {currentUser && can(currentUser.role, 'update', 'students') && (
+                        <button
+                          onClick={() => startEdit(std)}
+                          className="p-3 text-indigo-500 hover:bg-indigo-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 bg-white border border-slate-100 shadow-sm"
+                          title="Editar"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                      )}
+                      {currentUser && can(currentUser.role, 'delete', 'students') && (
+                        <button
+                          onClick={() => setDeleteConfirm({ id: std.id, name: std.name })}
+                          className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 bg-white border border-slate-100 shadow-sm"
+                          title="Remover"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

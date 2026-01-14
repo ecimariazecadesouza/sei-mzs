@@ -5,6 +5,7 @@ import {
   SchoolData, Student, Teacher, Subject, Class,
   Assignment, Grade, FormationType, KnowledgeArea, SubArea, SchoolSettings, AppUser, UserRole, AcademicYearConfig
 } from '../types';
+import { can, ResourceType } from '../lib/permissions';
 
 const DEFAULT_SCHOOL_LOGO = 'https://i.postimg.cc/1tVz9RY5/Logo-da-Escola-v5-ECIT.png';
 const DEFAULT_SYSTEM_LOGO = 'https://i.postimg.cc/Dwznvy86/SEI-V02.png';
@@ -289,6 +290,10 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const updateSettings = async (s: Partial<SchoolSettings>) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'settings')) {
+      alert('Acesso Negado: Apenas Administradores de TI podem alterar as configurações.');
+      return;
+    }
     const newSettings = { ...data.settings, ...s };
     setData(prev => ({ ...prev, settings: newSettings }));
     try {
@@ -314,6 +319,11 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       recStart: validateDate(config.recStart),
       recEnd: validateDate(config.recEnd),
     };
+
+    if (!currentUser || !can(currentUser.role, 'update', 'academic_years')) {
+      alert('Acesso Negado: Apenas Administradores de TI podem alterar o calendário.');
+      return;
+    }
 
     console.log("Saving sanitized config:", sanitizedConfig);
 
@@ -345,12 +355,20 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const genericAdd = async (tableKey: keyof SchoolData, item: any) => {
+    if (!currentUser || !can(currentUser.role, 'create', tableKey as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
+    }
     const { data: res, error } = await supabase.from(TABLE_MAP[tableKey]).insert([toSnake(item)]).select();
     if (error) throw error;
     if (res) setData(prev => ({ ...prev, [tableKey]: [...(prev[tableKey] as any[]), toCamel(res[0])] }));
   };
 
   const genericUpdate = async (tableKey: keyof SchoolData, id: string, item: any) => {
+    if (!currentUser || !can(currentUser.role, 'update', tableKey as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
+    }
     const { error } = await supabase.from(TABLE_MAP[tableKey]).update(toSnake(item)).eq('id', id);
     if (error) throw error;
     setData(prev => ({
@@ -377,16 +395,28 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addUser = (u: any) => genericAdd('users', u);
 
   const updateGrade = async (g: any) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
+      alert('Acesso Negado: Você não tem permissão para alterar notas.');
+      return;
+    }
     await supabase.from('grades').upsert(toSnake(g), { onConflict: 'student_id, subject_id, term' });
     await fetchData();
   };
 
   const bulkUpdateGrades = async (grades: any[]) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
+      alert('Acesso Negado: Você não tem permissão para alterar notas.');
+      return;
+    }
     await supabase.from('grades').upsert(grades.map(toSnake), { onConflict: 'student_id, subject_id, term' });
     await fetchData();
   };
 
   const deleteItem = async (type: keyof SchoolData, id: string) => {
+    if (!currentUser || !can(currentUser.role, 'delete', type as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para excluir este registro.');
+      return;
+    }
     await supabase.from(TABLE_MAP[type]).delete().eq('id', id);
     setData(prev => ({ ...prev, [type]: (prev[type] as any[]).filter(i => i.id !== id) }));
   };

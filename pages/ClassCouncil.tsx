@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Subject, Student, Grade, Class } from '../types';
+import { can } from '../lib/permissions';
 import jsPDF from 'jspdf';
 
 // --- Interfaces para cálculos ---
@@ -42,7 +43,7 @@ const Icon = ({ name, className = "w-4 h-4" }: { name: string, className?: strin
 };
 
 const ClassCouncil: React.FC = () => {
-  const { data, loading } = useSchool();
+  const { data, loading, currentUser } = useSchool();
 
   // Filtros
   const [filters, setFilters] = useState({
@@ -457,9 +458,11 @@ const ClassCouncil: React.FC = () => {
           <button onClick={handleExportPDF} disabled={!filters.turmaId} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:text-indigo-600 disabled:opacity-50 transition-all shadow-sm">
             <Icon name="download" /> PDF Nativo
           </button>
-          <button onClick={() => alert("Alterações salvas com sucesso.")} disabled={Object.keys(deliberations).length === 0} className="flex items-center gap-2 px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 disabled:opacity-50 transition-all uppercase tracking-widest">
-            <Icon name="save" /> Salvar
-          </button>
+          {currentUser && can(currentUser.role, 'update', 'council') && (
+            <button onClick={() => alert("Alterações salvas com sucesso.")} disabled={Object.keys(deliberations).length === 0} className="flex items-center gap-2 px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 disabled:opacity-50 transition-all uppercase tracking-widest">
+              <Icon name="save" /> Salvar
+            </button>
+          )}
         </div>
       </div>
 
@@ -539,136 +542,140 @@ const ClassCouncil: React.FC = () => {
         </div>
       </div>
 
-      {filters.turmaId ? (
-        <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl flex flex-col">
-          <div className="p-8 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center no-print">
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Protagonistas Selecionados: <span className="text-indigo-600">{rows.length}</span>
+      {
+        filters.turmaId ? (
+          <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl flex flex-col">
+            <div className="p-8 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center no-print">
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                Protagonistas Selecionados: <span className="text-indigo-600">{rows.length}</span>
+              </div>
+              <div className="flex gap-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Aprovado</span>
+                <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-400"></span> Retido</span>
+                <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-400"></span> Em Curso</span>
+              </div>
             </div>
-            <div className="flex gap-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Aprovado</span>
-              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-400"></span> Retido</span>
-              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-400"></span> Em Curso</span>
-            </div>
-          </div>
 
-          <div className="overflow-auto max-h-[calc(100vh-320px)] custom-scrollbar" id="council-table">
-            <table className="w-full text-center border-collapse">
-              <thead className="relative">
-                <tr>
-                  <th rowSpan={isCollapsed ? 1 : 2} className="sticky left-0 top-0 z-50 bg-white border-r border-b border-slate-200 px-8 py-5 text-left min-w-[280px] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                    <span className="text-[11px] uppercase tracking-widest font-black text-slate-800">Protagonista</span>
-                  </th>
-                  {!isCollapsed && disciplinasTurma.map(sub => (
-                    <th key={sub.id} colSpan={2} className={`${thStyle} min-w-[120px]`}>{sub.name}</th>
-                  ))}
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-emerald-50 text-emerald-800`}>Mds ≥ 5</th>
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-red-50 text-red-800`}>Mds &lt; 5</th>
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} min-w-[140px]`}>Resultado Geral</th>
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-indigo-50 text-indigo-800 min-w-[120px]`}>Conselho</th>
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-blue-50 text-blue-800 min-w-[140px]`}>Resultado Final</th>
-                  <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-purple-50 text-purple-800 min-w-[200px]`}>Retenções / Pendentes</th>
-                </tr>
-                {!isCollapsed && (
+            <div className="overflow-auto max-h-[calc(100vh-320px)] custom-scrollbar" id="council-table">
+              <table className="w-full text-center border-collapse">
+                <thead className="relative">
                   <tr>
-                    {disciplinasTurma.map(sub => (
-                      <React.Fragment key={`sub-h-${sub.id}`}>
-                        <th className="sticky top-[45px] z-40 py-2 border-r border-slate-100 text-[8px] font-black text-slate-400 bg-slate-50 shadow-[inset_0_-1px_0_rgba(0,0,0,0.05)]">MF</th>
-                        <th className="sticky top-[45px] z-40 py-2 border-r border-slate-200 text-[8px] font-black text-slate-400 bg-slate-50 shadow-[inset_0_-1px_0_rgba(0,0,0,0.05)]">ST</th>
-                      </React.Fragment>
+                    <th rowSpan={isCollapsed ? 1 : 2} className="sticky left-0 top-0 z-50 bg-white border-r border-b border-slate-200 px-8 py-5 text-left min-w-[280px] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                      <span className="text-[11px] uppercase tracking-widest font-black text-slate-800">Protagonista</span>
+                    </th>
+                    {!isCollapsed && disciplinasTurma.map(sub => (
+                      <th key={sub.id} colSpan={2} className={`${thStyle} min-w-[120px]`}>{sub.name}</th>
                     ))}
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-emerald-50 text-emerald-800`}>Mds ≥ 5</th>
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-red-50 text-red-800`}>Mds &lt; 5</th>
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} min-w-[140px]`}>Resultado Geral</th>
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-indigo-50 text-indigo-800 min-w-[120px]`}>Conselho</th>
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-blue-50 text-blue-800 min-w-[140px]`}>Resultado Final</th>
+                    <th rowSpan={isCollapsed ? 1 : 2} className={`${thStyle} bg-purple-50 text-purple-800 min-w-[200px]`}>Retenções / Pendentes</th>
                   </tr>
-                )}
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginatedRows.map((item, idx) => {
-                  const studentId = String(item.student.id);
-                  const decisaoAtual = deliberations[studentId]?.conselho || '-';
-                  const resFinalAtual = deliberations[studentId]?.resultado || item.resultadoGeral;
-
-                  return (
-                    <tr key={studentId} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} group hover:bg-indigo-50/10 transition-colors`}>
-                      <td className={`sticky left-0 z-10 border-r border-slate-100 px-8 py-5 text-left transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fbfcff]'} group-hover:bg-indigo-50/30 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]`}>
-                        <div className="font-black text-slate-800 text-xs uppercase truncate leading-tight">{item.student.name}</div>
-                        <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">RA: {item.student.registrationNumber}</div>
-                      </td>
-                      {!isCollapsed && disciplinasTurma.map(sub => {
-                        const res = item.results[String(sub.id)];
-                        if (!res) return (
-                          <React.Fragment key={`${studentId}-${sub.id}`}>
-                            <td className="p-2 border-r border-slate-50 text-slate-300">-</td>
-                            <td className="p-2 border-r border-slate-100 text-slate-300">-</td>
-                          </React.Fragment>
-                        );
-                        return (
-                          <React.Fragment key={`${studentId}-${sub.id}`}>
-                            <td className={`p-2 border-r border-slate-50 font-black text-[11px] ${res.mf < 6 ? 'text-red-500' : 'text-slate-600'}`}>
-                              {res.mf != null ? res.mf.toFixed(1) : '-'}{res.isRecovered && <span className="text-amber-500 ml-0.5">*</span>}
-                            </td>
-                            <td className="p-2 border-r border-slate-100">
-                              <div className={`w-2.5 h-2.5 rounded-full mx-auto shadow-sm ${res.status === 'Aprovado' ? 'bg-emerald-400' : res.status === 'Retido' ? 'bg-red-400' : 'bg-blue-400'}`} />
-                            </td>
-                          </React.Fragment>
-                        );
-                      })}
-                      <td className="bg-emerald-50/10 font-black text-emerald-600 text-base border-r border-slate-50">{item.mediasAcima5}</td>
-                      <td className="bg-red-50/10 font-black text-red-500 text-base border-r border-slate-100">{item.mediasAbaixo5}</td>
-                      <td className="px-4 py-5">
-                        <span className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border shadow-sm ${item.resultadoGeral === 'Aprovado' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                            item.resultadoGeral === 'Reprovado' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'
-                          }`}>{item.resultadoGeral}</span>
-                      </td>
-                      <td className="bg-indigo-50/20 p-3">
-                        <select
-                          className="w-full bg-white border border-purple-200 text-purple-700 text-[10px] font-black uppercase rounded-xl p-2 outline-none focus:ring-2 focus:ring-purple-300 shadow-sm"
-                          value={decisaoAtual}
-                          onChange={e => setDeliberations(prev => ({ ...prev, [studentId]: { conselho: e.target.value, resultado: prev[studentId]?.resultado || item.resultadoGeral } }))}
-                        >
-                          <option value="-">-</option>
-                          <option value="Sim">Sim</option>
-                        </select>
-                      </td>
-                      <td className="bg-blue-50/20 p-3 border-l border-indigo-100">
-                        {decisaoAtual === 'Sim' ? (
-                          <select
-                            className="w-full bg-white border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase rounded-xl p-2 outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm"
-                            value={resFinalAtual}
-                            onChange={e => setDeliberations(prev => ({ ...prev, [studentId]: { conselho: prev[studentId]?.conselho || 'Sim', resultado: e.target.value } }))}
-                          >
-                            <option value="Aprovado">Aprovado</option>
-                            <option value="Reprovado">Reprovado</option>
-                            <option value="Pendente">Pendente</option>
-                          </select>
-                        ) : (
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${resFinalAtual === 'Aprovado' ? 'text-emerald-600' : resFinalAtual === 'Reprovado' ? 'text-red-500' : 'text-amber-600'}`}>
-                            {resFinalAtual}
-                          </span>
-                        )}
-                      </td>
-                      <td className="bg-purple-50/20 px-4 py-5 border-l border-slate-100 text-left">
-                        <div className="text-[10px] font-bold text-slate-500 leading-snug">
-                          {item.disciplinasRetidas.length > 0
-                            ? item.disciplinasRetidas.join(', ')
-                            : <span className="text-emerald-500 italic font-black uppercase tracking-widest">Nenhuma</span>}
-                        </div>
-                      </td>
+                  {!isCollapsed && (
+                    <tr>
+                      {disciplinasTurma.map(sub => (
+                        <React.Fragment key={`sub-h-${sub.id}`}>
+                          <th className="sticky top-[45px] z-40 py-2 border-r border-slate-100 text-[8px] font-black text-slate-400 bg-slate-50 shadow-[inset_0_-1px_0_rgba(0,0,0,0.05)]">MF</th>
+                          <th className="sticky top-[45px] z-40 py-2 border-r border-slate-200 text-[8px] font-black text-slate-400 bg-slate-50 shadow-[inset_0_-1px_0_rgba(0,0,0,0.05)]">ST</th>
+                        </React.Fragment>
+                      ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  )}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedRows.map((item, idx) => {
+                    const studentId = String(item.student.id);
+                    const decisaoAtual = deliberations[studentId]?.conselho || '-';
+                    const resFinalAtual = deliberations[studentId]?.resultado || item.resultadoGeral;
+
+                    return (
+                      <tr key={studentId} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} group hover:bg-indigo-50/10 transition-colors`}>
+                        <td className={`sticky left-0 z-10 border-r border-slate-100 px-8 py-5 text-left transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fbfcff]'} group-hover:bg-indigo-50/30 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]`}>
+                          <div className="font-black text-slate-800 text-xs uppercase truncate leading-tight">{item.student.name}</div>
+                          <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">RA: {item.student.registrationNumber}</div>
+                        </td>
+                        {!isCollapsed && disciplinasTurma.map(sub => {
+                          const res = item.results[String(sub.id)];
+                          if (!res) return (
+                            <React.Fragment key={`${studentId}-${sub.id}`}>
+                              <td className="p-2 border-r border-slate-50 text-slate-300">-</td>
+                              <td className="p-2 border-r border-slate-100 text-slate-300">-</td>
+                            </React.Fragment>
+                          );
+                          return (
+                            <React.Fragment key={`${studentId}-${sub.id}`}>
+                              <td className={`p-2 border-r border-slate-50 font-black text-[11px] ${res.mf < 6 ? 'text-red-500' : 'text-slate-600'}`}>
+                                {res.mf != null ? res.mf.toFixed(1) : '-'}{res.isRecovered && <span className="text-amber-500 ml-0.5">*</span>}
+                              </td>
+                              <td className="p-2 border-r border-slate-100">
+                                <div className={`w-2.5 h-2.5 rounded-full mx-auto shadow-sm ${res.status === 'Aprovado' ? 'bg-emerald-400' : res.status === 'Retido' ? 'bg-red-400' : 'bg-blue-400'}`} />
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
+                        <td className="bg-emerald-50/10 font-black text-emerald-600 text-base border-r border-slate-50">{item.mediasAcima5}</td>
+                        <td className="bg-red-50/10 font-black text-red-500 text-base border-r border-slate-100">{item.mediasAbaixo5}</td>
+                        <td className="px-4 py-5">
+                          <span className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border shadow-sm ${item.resultadoGeral === 'Aprovado' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                            item.resultadoGeral === 'Reprovado' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                            }`}>{item.resultadoGeral}</span>
+                        </td>
+                        <td className="bg-indigo-50/20 p-3">
+                          <select
+                            className="w-full bg-white border border-purple-200 text-purple-700 text-[10px] font-black uppercase rounded-xl p-2 outline-none focus:ring-2 focus:ring-purple-300 shadow-sm disabled:opacity-50"
+                            value={decisaoAtual}
+                            disabled={!currentUser || !can(currentUser.role, 'update', 'council')}
+                            onChange={e => setDeliberations(prev => ({ ...prev, [studentId]: { conselho: e.target.value, resultado: prev[studentId]?.resultado || item.resultadoGeral } }))}
+                          >
+                            <option value="-">-</option>
+                            <option value="Sim">Sim</option>
+                          </select>
+                        </td>
+                        <td className="bg-blue-50/20 p-3 border-l border-indigo-100">
+                          {decisaoAtual === 'Sim' ? (
+                            <select
+                              className="w-full bg-white border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase rounded-xl p-2 outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm disabled:opacity-50"
+                              value={resFinalAtual}
+                              disabled={!currentUser || !can(currentUser.role, 'update', 'council')}
+                              onChange={e => setDeliberations(prev => ({ ...prev, [studentId]: { conselho: prev[studentId]?.conselho || 'Sim', resultado: e.target.value } }))}
+                            >
+                              <option value="Aprovado">Aprovado</option>
+                              <option value="Reprovado">Reprovado</option>
+                              <option value="Pendente">Pendente</option>
+                            </select>
+                          ) : (
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${resFinalAtual === 'Aprovado' ? 'text-emerald-600' : resFinalAtual === 'Reprovado' ? 'text-red-500' : 'text-amber-600'}`}>
+                              {resFinalAtual}
+                            </span>
+                          )}
+                        </td>
+                        <td className="bg-purple-50/20 px-4 py-5 border-l border-slate-100 text-left">
+                          <div className="text-[10px] font-bold text-slate-500 leading-snug">
+                            {item.disciplinasRetidas.length > 0
+                              ? item.disciplinasRetidas.join(', ')
+                              : <span className="text-emerald-500 italic font-black uppercase tracking-widest">Nenhuma</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-40 bg-white rounded-[40px] border-2 border-dashed border-slate-200 text-center animate-in zoom-in-95 duration-500">
-          <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-6 border border-slate-100">
-            <Icon name="clipboard" className="w-10 h-10" />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-40 bg-white rounded-[40px] border-2 border-dashed border-slate-200 text-center animate-in zoom-in-95 duration-500">
+            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-6 border border-slate-100">
+              <Icon name="clipboard" className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Seleção de Parâmetros</h3>
+            <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto mt-2">Escolha o Ano Letivo e a turma para deliberar o conselho.</p>
           </div>
-          <h3 className="text-2xl font-black text-slate-800 tracking-tight">Seleção de Parâmetros</h3>
-          <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto mt-2">Escolha o Ano Letivo e a turma para deliberar o conselho.</p>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

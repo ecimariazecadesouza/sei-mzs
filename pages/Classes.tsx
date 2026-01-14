@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Class, Student, Grade } from '../types';
+import { can } from '../lib/permissions';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -37,7 +38,7 @@ const Icons = {
 };
 
 const Classes: React.FC = () => {
-  const { data, addClass, updateClass, deleteItem } = useSchool();
+  const { data, addClass, updateClass, deleteItem, currentUser } = useSchool();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
@@ -157,9 +158,11 @@ const Classes: React.FC = () => {
               <option value="2025">2025</option>
             </select>
           </div>
-          <button onClick={() => { resetForm(); setIsFormOpen(true); }} className="bg-[#0A1128] text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-slate-800 transition-all active:scale-95">
-            <Icons.Plus /> Nova Turma
-          </button>
+          {currentUser && can(currentUser.role, 'create', 'classes') && (
+            <button onClick={() => { resetForm(); setIsFormOpen(true); }} className="bg-[#0A1128] text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-xl hover:bg-slate-800 transition-all active:scale-95">
+              <Icons.Plus /> Nova Turma
+            </button>
+          )}
         </div>
       </div>
 
@@ -356,15 +359,21 @@ const Classes: React.FC = () => {
 
               {/* Action Buttons conforme imagem + Clonar */}
               <div className="flex gap-3 relative z-10">
-                <button onClick={() => handleEdit(cls)} className="flex-1 flex items-center justify-center gap-3 py-4 border border-slate-200 rounded-2xl text-slate-700 font-black text-[11px] uppercase tracking-widest hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm">
-                  <Icons.Edit /> Editar
-                </button>
-                <button onClick={() => handleClone(cls)} className="w-14 h-14 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm" title="Clonar Turma">
-                  <Icons.Copy />
-                </button>
-                <button onClick={() => setDeleteConfirm({ id: cls.id, name: cls.name })} className="w-14 h-14 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shadow-sm" title="Excluir">
-                  <Icons.Trash />
-                </button>
+                {currentUser && can(currentUser.role, 'update', 'classes') && (
+                  <>
+                    <button onClick={() => handleEdit(cls)} className="flex-1 flex items-center justify-center gap-3 py-4 border border-slate-200 rounded-2xl text-slate-700 font-black text-[11px] uppercase tracking-widest hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm">
+                      <Icons.Edit /> Editar
+                    </button>
+                    <button onClick={() => handleClone(cls)} className="w-14 h-14 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm" title="Clonar Turma">
+                      <Icons.Copy />
+                    </button>
+                  </>
+                )}
+                {currentUser && can(currentUser.role, 'delete', 'classes') && (
+                  <button onClick={() => setDeleteConfirm({ id: cls.id, name: cls.name })} className="w-14 h-14 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shadow-sm" title="Excluir">
+                    <Icons.Trash />
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -400,13 +409,15 @@ const Classes: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleRemoveSubjectFromClass(viewingSubjects.id, sub.id); }}
-                      className="w-10 h-10 flex items-center justify-center text-red-200 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                      title="Remover Disciplina desta Turma"
-                    >
-                      <Icons.Trash />
-                    </button>
+                    {currentUser && can(currentUser.role, 'update', 'classes') && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveSubjectFromClass(viewingSubjects.id, sub.id); }}
+                        className="w-10 h-10 flex items-center justify-center text-red-200 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        title="Remover Disciplina desta Turma"
+                      >
+                        <Icons.Trash />
+                      </button>
+                    )}
                   </div>
                 ))}
               {viewingSubjects.subjectIds?.length === 0 && (

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student, AcademicYearConfig } from '../types';
+import { can } from '../lib/permissions';
 import jsPDF from 'jspdf';
 
 // Função para converter links do Google Drive em links diretos de imagem
@@ -162,7 +163,7 @@ const calculateRowStats = (row: GradeRow, year: string, academicYears: AcademicY
 };
 
 const GradeManagement: React.FC = () => {
-  const { data, bulkUpdateGrades, loading, refreshData } = useSchool();
+  const { data, bulkUpdateGrades, loading, refreshData, currentUser } = useSchool();
   const tableRef = useRef<HTMLDivElement>(null);
 
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -367,20 +368,24 @@ const GradeManagement: React.FC = () => {
               >
                 {isExporting ? 'PREPARANDO PDF...' : 'Exportar Diário (PDF)'}
               </button>
-              <button
-                onClick={() => setIsBatchMode(true)}
-                disabled={!selectedSubjectId}
-                className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-30"
-              >
-                Importação em Lote
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!hasUnsavedChanges || loading}
-                className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${hasUnsavedChanges ? 'bg-emerald-600 text-white shadow-emerald-100 active:scale-95 hover:bg-emerald-700' : 'bg-slate-100 text-slate-400 shadow-none'}`}
-              >
-                {loading ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
+              {currentUser && can(currentUser.role, 'update', 'grades') && (
+                <button
+                  onClick={() => setIsBatchMode(true)}
+                  disabled={!selectedSubjectId}
+                  className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-30"
+                >
+                  Importação em Lote
+                </button>
+              )}
+              {currentUser && can(currentUser.role, 'update', 'grades') && (
+                <button
+                  onClick={handleSave}
+                  disabled={!hasUnsavedChanges || loading}
+                  className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${hasUnsavedChanges ? 'bg-emerald-600 text-white shadow-emerald-100 active:scale-95 hover:bg-emerald-700' : 'bg-slate-100 text-slate-400 shadow-none'}`}
+                >
+                  {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -491,15 +496,15 @@ const GradeManagement: React.FC = () => {
                               <span className="font-mono text-slate-500">{row.registrationNumber}</span>
                             </div>
                           </td>
-                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b1} onChange={(v: string) => handleFieldChange(row.studentId, 'b1', v)} /></td>
-                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b2} onChange={(v: string) => handleFieldChange(row.studentId, 'b2', v)} /></td>
-                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b3} onChange={(v: string) => handleFieldChange(row.studentId, 'b3', v)} /></td>
-                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b4} onChange={(v: string) => handleFieldChange(row.studentId, 'b4', v)} /></td>
+                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b1} disabled={!currentUser || !can(currentUser.role, 'update', 'grades')} onChange={(v: string) => handleFieldChange(row.studentId, 'b1', v)} /></td>
+                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b2} disabled={!currentUser || !can(currentUser.role, 'update', 'grades')} onChange={(v: string) => handleFieldChange(row.studentId, 'b2', v)} /></td>
+                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b3} disabled={!currentUser || !can(currentUser.role, 'update', 'grades')} onChange={(v: string) => handleFieldChange(row.studentId, 'b3', v)} /></td>
+                          <td className="h-20 border-r border-slate-50"><GradeInput value={row.b4} disabled={!currentUser || !can(currentUser.role, 'update', 'grades')} onChange={(v: string) => handleFieldChange(row.studentId, 'b4', v)} /></td>
                           <td className="h-20 bg-slate-50/30 font-black text-slate-700 text-[15px] border-r border-slate-100">{stats.points}</td>
                           <td className="h-20 bg-slate-50/30 font-black text-slate-700 text-[15px] border-r border-slate-100">{stats.mg}</td>
                           <td className="h-20 bg-amber-50/10 font-black text-amber-600 text-[11px] border-r border-slate-100">{stats.precisa}</td>
                           <td className="h-20 bg-amber-50/20 border-r border-slate-100">
-                            <GradeInput value={row.recFinal} disabled={stats.precisa === '----' || stats.precisa === 'Inapto'} onChange={(v: string) => handleFieldChange(row.studentId, 'recFinal', v)} className="text-amber-900 font-black" />
+                            <GradeInput value={row.recFinal} disabled={!currentUser || !can(currentUser.role, 'update', 'grades') || stats.precisa === '----' || stats.precisa === 'Inapto'} onChange={(v: string) => handleFieldChange(row.studentId, 'recFinal', v)} className="text-amber-900 font-black" />
                           </td>
                           <td className="h-20 bg-indigo-50/40 font-black text-indigo-700 text-[15px] border-r border-slate-100">{stats.mf}</td>
                           <td className="px-8 py-5 border-r border-slate-100">
