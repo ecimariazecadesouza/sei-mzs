@@ -16,6 +16,7 @@ const Users: React.FC = () => {
     setLoading(true);
     try {
       await addUser({ email: email.toLowerCase().trim(), name: name.toUpperCase().trim(), role });
+      alert("Acesso autorizado com sucesso!");
       setEmail(''); setName(''); setRole('prof');
     } catch (e) {
       alert("Erro ao adicionar usuário.");

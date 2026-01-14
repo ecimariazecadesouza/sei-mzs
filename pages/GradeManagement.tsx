@@ -192,18 +192,43 @@ const GradeManagement: React.FC = () => {
   }, [selectedYear]);
 
   const filteredClasses = useMemo(() => {
-    return data.classes.filter(c => c.year === selectedYear).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  }, [data.classes, selectedYear]);
+    const classes = data.classes.filter(c => c.year === selectedYear);
+
+    if (currentUser?.role === 'prof') {
+      const teacher = data.teachers.find(t => t.email.toLowerCase() === currentUser.email.toLowerCase());
+      if (!teacher) return [];
+
+      const myClassIds = new Set(data.assignments
+        .filter(a => String(a.teacherId) === String(teacher.id))
+        .map(a => a.classId)
+      );
+      return classes.filter(c => myClassIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    }
+
+    return classes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  }, [data.classes, data.assignments, data.teachers, selectedYear, currentUser]);
 
   const classSubjects = useMemo(() => {
     if (!selectedClass) return [];
-    return data.subjects
-      .filter(s => selectedClass.subjectIds?.includes(s.id))
-      .sort((a, b) => {
-        if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-        return a.periodicity === 'Anual' ? -1 : 1;
-      });
-  }, [selectedClass, data.subjects]);
+    let subjects = data.subjects
+      .filter(s => selectedClass.subjectIds?.includes(s.id));
+
+    if (currentUser?.role === 'prof') {
+      const teacher = data.teachers.find(t => t.email.toLowerCase() === currentUser.email.toLowerCase());
+      if (!teacher) return [];
+
+      const mySubjectIds = new Set(data.assignments
+        .filter(a => String(a.teacherId) === String(teacher.id) && String(a.classId) === String(selectedClassId))
+        .map(a => a.subjectId)
+      );
+      subjects = subjects.filter(s => mySubjectIds.has(s.id));
+    }
+
+    return subjects.sort((a, b) => {
+      if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
+      return a.periodicity === 'Anual' ? -1 : 1;
+    });
+  }, [selectedClass, selectedClassId, data.subjects, data.assignments, data.teachers, currentUser]);
 
   useEffect(() => {
     if (selectedClassId && selectedSubjectId) {
