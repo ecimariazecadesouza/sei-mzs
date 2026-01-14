@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { UserRole } from '../types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Key } from 'lucide-react';
 
 const Users: React.FC = () => {
-  const { data, addUser, deleteItem, currentUser } = useSchool();
+  const { data, addUser, deleteItem, currentUser, requestPasswordReset } = useSchool();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('prof');
@@ -21,6 +21,16 @@ const Users: React.FC = () => {
       alert("Erro ao adicionar usuário.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    if (!window.confirm(`Deseja enviar um link de recuperação de senha para ${email}?`)) return;
+    try {
+      await requestPasswordReset(email);
+      alert(`Link de recuperação enviado para ${email}`);
+    } catch (e) {
+      alert("Erro ao enviar link de recuperação.");
     }
   };
 
@@ -96,7 +106,16 @@ const Users: React.FC = () => {
                   </td>
                   <td className="px-8 py-5 text-right">
                     {user.email !== currentUser?.email && (
-                      <button onClick={() => deleteItem('users', user.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleResetPassword(user.email)}
+                          className="p-2 text-slate-200 hover:text-indigo-500 transition-colors"
+                          title="Resetar Senha"
+                        >
+                          <Key size={18} />
+                        </button>
+                        <button onClick={() => deleteItem('users', user.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { useSchool, formatImageUrl } from '../context/SchoolContext';
 
 const Login: React.FC = () => {
-  const { login, data, loading, dbError, createFirstAdmin, refreshData } = useSchool();
+  const { login, data, loading, dbError, createFirstAdmin, refreshData, requestPasswordReset } = useSchool();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isSetupLoading, setIsSetupLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   const isSystemEmpty = !loading && !dbError && data.users.length === 0;
 
@@ -39,6 +41,21 @@ const Login: React.FC = () => {
       await createFirstAdmin({ name, email });
     } catch (err: any) {
       setError(err.message || 'Erro ao configurar administrador.');
+    } finally {
+      setIsSetupLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setIsSetupLoading(true);
+    setError('');
+    try {
+      await requestPasswordReset(email);
+      setRecoverySuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao enviar link de recuperação.');
     } finally {
       setIsSetupLoading(false);
     }
@@ -170,6 +187,73 @@ CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
     );
   }
 
+  if (isRecovering) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-slate-50">
+        <div className="w-full max-w-md bg-white rounded-[48px] shadow-2xl border border-slate-100 p-12 space-y-10 animate-in zoom-in-95 duration-500">
+          <div className="text-center space-y-4">
+            <div className="w-20 h-20 bg-amber-500 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-amber-200">
+              <span className="text-3xl text-white">🔑</span>
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tighter">Recuperar Senha</h1>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">{recoverySuccess ? 'E-mail enviado' : 'Digite seu e-mail de acesso'}</p>
+            </div>
+          </div>
+
+          {recoverySuccess ? (
+            <div className="space-y-8">
+              <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 text-center">
+                <p className="text-sm text-emerald-700 font-medium leading-relaxed">
+                  Enviamos um link de recuperação para <strong>{email}</strong>. Por favor, verifique sua caixa de entrada e spam.
+                </p>
+              </div>
+              <button
+                onClick={() => { setIsRecovering(false); setRecoverySuccess(false); setError(''); }}
+                className="w-full py-5 bg-[#0A1128] text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:bg-slate-800 transition-all active:scale-95"
+              >
+                Voltar ao Login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handlePasswordReset} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">E-mail de Acesso</label>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="seuemail@provedor.com"
+                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-[24px] outline-none font-bold text-slate-700 focus:bg-white focus:border-indigo-300 transition-all shadow-inner"
+                />
+              </div>
+
+              {error && <p className="text-center text-red-500 text-[10px] font-bold uppercase bg-red-50 p-3 rounded-xl border border-red-100">{error}</p>}
+
+              <div className="space-y-4">
+                <button
+                  type="submit"
+                  disabled={isSetupLoading}
+                  className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSetupLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRecovering(false)}
+                  className="w-full py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-slate-50">
       <div className="w-full max-w-md bg-white rounded-[48px] shadow-2xl border border-slate-100 p-12 space-y-10 animate-in zoom-in-95 duration-500">
@@ -222,6 +306,15 @@ CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
             {isSetupLoading ? 'Verificando...' : 'Entrar no Sistema'}
           </button>
         </form>
+
+        <div className="text-center">
+          <button
+            onClick={() => { setIsRecovering(true); setError(''); }}
+            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+          >
+            Esqueci minha senha
+          </button>
+        </div>
 
         <div className="space-y-6">
           <div className="flex items-center gap-4">

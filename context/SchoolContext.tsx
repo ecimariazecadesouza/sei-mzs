@@ -85,6 +85,7 @@ export interface SchoolContextType {
   addUser: (u: Omit<AppUser, 'id'>) => Promise<void>;
   createFirstAdmin: (u: { name: string, email: string }) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   isSettingPassword: boolean;
   setIsSettingPassword: (v: boolean) => void;
   refreshData: () => Promise<void>;
@@ -253,6 +254,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
     setIsSettingPassword(false);
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
   };
 
   const updateProfile = async (name: string) => {
@@ -428,7 +436,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
     addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades,
     deleteItem, updateSettings, updateAcademicYearConfig, addUser, createFirstAdmin,
-    updatePassword, isSettingPassword, setIsSettingPassword,
+    updatePassword, requestPasswordReset, isSettingPassword, setIsSettingPassword,
     refreshData: fetchData
   }), [data, loading, dbError, currentUser, isSettingPassword]);
 
