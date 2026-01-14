@@ -28,7 +28,7 @@ const Teachers: React.FC = () => {
   const [email, setEmail] = useState('');
 
   const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -40,14 +40,20 @@ const Teachers: React.FC = () => {
     data.classes.filter(c => c.year === filterYear).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
     , [data.classes, filterYear]);
 
-  const disciplinasDaTurma = useMemo(() => {
-    if (!selectedClass) return [];
-    const cls = data.classes.find(c => String(c.id) === String(selectedClass));
-    if (!cls) return [];
+  const disciplinasDaCarga = useMemo(() => {
+    if (selectedClasses.length === 0) return [];
+
+    // Pegar todas as disciplinas que existem em PELO MENOS UMA das turmas selecionadas
+    const subjectsInClasses = new Set<string>();
+    selectedClasses.forEach(classId => {
+      const cls = data.classes.find(c => String(c.id) === String(classId));
+      cls?.subjectIds?.forEach(sid => subjectsInClasses.add(String(sid)));
+    });
+
     return data.subjects
-      .filter(s => cls.subjectIds?.includes(s.id))
+      .filter(s => subjectsInClasses.has(String(s.id)))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedClass, data.classes, data.subjects]);
+  }, [selectedClasses, data.classes, data.subjects]);
 
   const atribuicoesDoAno = useMemo(() => {
     return data.assignments.filter(ass => {
@@ -75,39 +81,59 @@ const Teachers: React.FC = () => {
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeacher || !selectedClass || selectedSubjects.length === 0) return;
-
-    // Filtrar apenas o que já não está atribuído a ESSE professor nesta turma
-    const currentAssignments = data.assignments.filter(a =>
-      String(a.teacherId) === String(selectedTeacher) &&
-      String(a.classId) === String(selectedClass)
-    );
-    const assignedIds = new Set(currentAssignments.map(a => String(a.subjectId)));
-
-    const toAssign = selectedSubjects.filter(sid => !assignedIds.has(String(sid)));
-
-    if (toAssign.length === 0) {
-      alert("Todas as disciplinas selecionadas já estão vinculadas a este professor nesta turma.");
-      return;
-    }
+    if (!selectedTeacher || selectedClasses.length === 0 || selectedSubjects.length === 0) return;
 
     setIsAssigning(true);
+    let successCount = 0;
+    let skipCount = 0;
+
     try {
-      for (const subjectId of toAssign) {
-        await assignTeacher({
-          teacherId: selectedTeacher,
-          classId: selectedClass,
-          subjectId: subjectId
-        });
+      for (const classId of selectedClasses) {
+        const cls = data.classes.find(c => String(c.id) === String(classId));
+        if (!cls) continue;
+
+        // Filtrar apenas disciplinas que REALMENTE pertencem a esta turma específica
+        const validSubjectsInThisClass = selectedSubjects.filter(sid => cls.subjectIds?.includes(sid));
+
+        for (const subjectId of validSubjectsInThisClass) {
+          const alreadyAssigned = data.assignments.some(a =>
+            String(a.teacherId) === String(selectedTeacher) &&
+            String(a.classId) === String(classId) &&
+            String(a.subjectId) === String(subjectId)
+          );
+
+          if (!alreadyAssigned) {
+            await assignTeacher({
+              teacherId: selectedTeacher,
+              classId: classId,
+              subjectId: subjectId
+            });
+            successCount++;
+          } else {
+            skipCount++;
+          }
+        }
       }
+
       setSelectedSubjects([]);
+      setSelectedClasses([]);
       await refreshData();
-      alert(`${toAssign.length} disciplinas vinculadas com sucesso!`);
+
+      let msg = `${successCount} vínculos criados com sucesso!`;
+      if (skipCount > 0) msg += ` (${skipCount} já existiam e foram ignorados).`;
+      alert(msg);
     } catch (err) {
-      alert("Erro ao atribuir vínculos.");
+      console.error("Erro na atribuição:", err);
+      alert("Erro ao atribuir vínculos. Algumas atribuições podem ter sido processadas.");
     } finally {
       setIsAssigning(false);
     }
+  };
+
+  const toggleClass = (id: string) => {
+    setSelectedClasses(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
   };
 
   const toggleSubject = (id: string) => {
@@ -134,7 +160,7 @@ const Teachers: React.FC = () => {
             value={filterYear}
             onChange={e => {
               setFilterYear(e.target.value);
-              setSelectedClass('');
+              setSelectedClasses([]);
               setSelectedSubjects([]);
             }}
             className="bg-transparent outline-none text-slate-800 font-black text-sm cursor-pointer"
@@ -207,35 +233,43 @@ const Teachers: React.FC = () => {
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Turma</label>
-                <select
-                  required
-                  value={selectedClass}
-                  onChange={e => {
-                    setSelectedClass(e.target.value);
-                    setSelectedSubjects([]);
-                  }}
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none bg-white font-bold text-slate-700 focus:border-purple-200"
-                >
-                  <option value="">SELECIONE...</option>
-                  {classesDoAno.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turmas Selecionadas</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setSelectedClasses(classesDoAno.map(c => c.id))} className="text-[8px] font-black text-indigo-600 hover:underline uppercase">Todas</button>
+                    <button type="button" onClick={() => setSelectedClasses([])} className="text-[8px] font-black text-slate-400 hover:underline uppercase">Limpar</button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
+                  {classesDoAno.map(cls => (
+                    <label key={cls.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={selectedClasses.includes(cls.id)}
+                        onChange={() => toggleClass(cls.id)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                      />
+                      <span className="text-[10px] font-bold text-slate-700 uppercase truncate">{cls.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
-              {selectedClass && (
+              {selectedClasses.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between px-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disciplinas</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disciplinas Disponíveis</label>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setSelectedSubjects(disciplinasDaTurma.map(s => s.id))} className="text-[8px] font-black text-indigo-600 hover:underline uppercase">Todas</button>
+                      <button type="button" onClick={() => setSelectedSubjects(disciplinasDaCarga.map(s => s.id))} className="text-[8px] font-black text-indigo-600 hover:underline uppercase">Todas</button>
                       <button type="button" onClick={() => setSelectedSubjects([])} className="text-[8px] font-black text-slate-400 hover:underline uppercase">Limpar</button>
                     </div>
                   </div>
 
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
-                    {disciplinasDaTurma.length === 0 && <p className="text-[10px] text-slate-400 italic text-center py-4">Nenhuma disciplina na turma.</p>}
-                    {disciplinasDaTurma.map(sub => (
+                    {disciplinasDaCarga.length === 0 && <p className="text-[10px] text-slate-400 italic text-center py-4">Nenhuma disciplina nas turmas selecionadas.</p>}
+                    {disciplinasDaCarga.map(sub => (
                       <label key={sub.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-all">
                         <input
                           type="checkbox"
@@ -380,8 +414,12 @@ const Teachers: React.FC = () => {
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Cancelar</button>
               <button
                 onClick={async () => {
-                  await deleteItem(deleteConfirm.type, deleteConfirm.id);
-                  setDeleteConfirm(null);
+                  try {
+                    await deleteItem(deleteConfirm.type, deleteConfirm.id);
+                    setDeleteConfirm(null);
+                  } catch (err) {
+                    alert("Erro ao excluir registro. Ele pode estar sendo usado em outra parte do sistema.");
+                  }
                 }}
                 className="flex-1 py-4 bg-red-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700"
               >

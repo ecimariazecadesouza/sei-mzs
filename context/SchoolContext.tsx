@@ -424,7 +424,11 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para excluir este registro.');
       return;
     }
-    await supabase.from(TABLE_MAP[type]).delete().eq('id', id);
+    const { error } = await supabase.from(TABLE_MAP[type]).delete().eq('id', id);
+    if (error) {
+      console.error(`Error deleting from ${type}:`, error);
+      throw error;
+    }
     setData(prev => ({ ...prev, [type]: (prev[type] as any[]).filter(i => i.id !== id) }));
   };
 
