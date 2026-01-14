@@ -29,7 +29,8 @@ const Users: React.FC = () => {
     admin_dir: 'Admin Direção',
     coord: 'Coordenação',
     prof: 'Professor',
-    sec: 'Secretaria'
+    sec: 'Secretaria',
+    guest: 'Visitante'
   };
 
   return (
@@ -62,6 +63,7 @@ const Users: React.FC = () => {
                 <option value="coord">Coordenação</option>
                 <option value="admin_dir">Admin Direção</option>
                 <option value="admin_ti">Admin TI</option>
+                <option value="guest">Visitante</option>
               </select>
             </div>
 

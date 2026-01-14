@@ -1,5 +1,5 @@
 
-export type UserRole = 'admin_ti' | 'admin_dir' | 'coord' | 'prof' | 'sec';
+export type UserRole = 'admin_ti' | 'admin_dir' | 'coord' | 'prof' | 'sec' | 'guest';
 
 export interface AppUser {
   id: string;

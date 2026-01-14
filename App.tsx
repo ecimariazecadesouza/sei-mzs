@@ -19,6 +19,7 @@ const Analytics = React.lazy(() => import('./pages/Analytics'));
 const ClassCouncil = React.lazy(() => import('./pages/ClassCouncil'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const Users = React.lazy(() => import('./pages/Users'));
+const PasswordSetup = React.lazy(() => import('./components/PasswordSetup'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useSchool();
@@ -34,9 +35,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const AuthenticatedApp: React.FC = () => {
-  const { currentUser } = useSchool();
+  const { currentUser, isSettingPassword } = useSchool();
 
   if (!currentUser) return <Login />;
+
+  if (isSettingPassword) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <PasswordSetup />
+      </Suspense>
+    );
+  }
 
   return (
     <Layout>

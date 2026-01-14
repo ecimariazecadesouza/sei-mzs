@@ -85,14 +85,15 @@ const Login: React.FC = () => {
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   email text UNIQUE NOT NULL,
   name text NOT NULL,
-  role text NOT NULL CHECK (role IN ('admin_ti', 'admin_dir', 'coord', 'prof', 'sec')),
+  role text NOT NULL CHECK (role IN ('admin_ti', 'admin_dir', 'coord', 'prof', 'sec', 'guest')),
   avatar_url text,
   created_at timestamptz DEFAULT now()
 );
 
--- Habilitar acesso público para este projeto de demonstração
+-- Habilitar RLS e garantir acesso básico (necessário para o SEI funcionar)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acesso Total" ON public.users FOR ALL USING (true);`}
+DROP POLICY IF EXISTS "Public select" ON public.users;
+CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
               </pre>
               <div className="absolute top-4 right-4 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-800 px-2 py-1 rounded">Script SQL</div>
             </div>

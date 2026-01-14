@@ -83,6 +83,9 @@ export interface SchoolContextType {
   updateAcademicYearConfig: (config: AcademicYearConfig) => Promise<void>;
   addUser: (u: Omit<AppUser, 'id'>) => Promise<void>;
   createFirstAdmin: (u: { name: string, email: string }) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  isSettingPassword: boolean;
+  setIsSettingPassword: (v: boolean) => void;
   refreshData: () => Promise<void>;
 }
 
@@ -105,6 +108,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -153,9 +157,11 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           console.error("Hint:", error.hint);
           console.groupEnd();
 
-          if (error.message.includes('users')) {
-            setDbError('MISSING_USERS_TABLE');
-            foundCriticalError = true;
+          if (error.message.includes('not found') || error.code === 'PGRST116') {
+            if (tableName === 'users') {
+              setDbError('MISSING_USERS_TABLE');
+              foundCriticalError = true;
+            }
           }
         }
       });
@@ -173,6 +179,11 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("AUTH EVENT:", event);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsSettingPassword(true);
+      }
+
       if (session?.user) {
         // Buscar dados extras do usuário na tabela public.users
         const { data: userData } = await supabase
@@ -214,6 +225,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       throw error;
     }
     return false;
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    setIsSettingPassword(false);
   };
 
   const updateProfile = async (name: string) => {
@@ -360,8 +377,9 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
     addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades,
     deleteItem, updateSettings, updateAcademicYearConfig, addUser, createFirstAdmin,
+    updatePassword, isSettingPassword, setIsSettingPassword,
     refreshData: fetchData
-  }), [data, loading, dbError, currentUser]);
+  }), [data, loading, dbError, currentUser, isSettingPassword]);
 
   return <SchoolContext.Provider value={value}>{children}</SchoolContext.Provider>;
 };
