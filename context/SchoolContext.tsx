@@ -113,17 +113,25 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const tables = Object.entries(TABLE_MAP);
 
     try {
-      const results = await Promise.allSettled(
-        tables.map(async ([stateKey, tableName]) => {
-          const { data: resData, error } = await supabase.from(tableName).select('*');
-          if (error) {
-            if (error.code === 'PGRST116' || error.message.includes('not found')) {
-              throw new Error(`Tabela '${tableName}' não encontrada.`);
-            }
-            throw error;
+      const fetchWithTimeout = async (stateKey: string, tableName: string) => {
+        const fetchPromise = supabase.from(tableName).select('*');
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout na tabela ${tableName}`)), 10000)
+        );
+
+        const { data: resData, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+        if (error) {
+          if (error.code === 'PGRST116' || error.message.includes('not found')) {
+            throw new Error(`Tabela '${tableName}' não encontrada.`);
           }
-          return { stateKey, data: resData };
-        })
+          throw error;
+        }
+        return { stateKey, data: resData };
+      };
+
+      const results = await Promise.allSettled(
+        tables.map(([stateKey, tableName]) => fetchWithTimeout(stateKey, tableName))
       );
 
       let foundCriticalError = false;
@@ -202,7 +210,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
       }
     } catch (error: any) {
-      console.error("LOGIN FUNCTION ERROR:", error.message || error);
+      console.error("Login Error:", error.message);
       throw error;
     }
     return false;
