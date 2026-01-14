@@ -161,18 +161,20 @@ const Settings: React.FC = () => {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sem logo cadastrado</p>
               </div>
             )}
-            <div className="absolute inset-0 cursor-pointer flex flex-col gap-3 items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-[#0A1128]/70 backdrop-blur-md p-6">
-              <label className="w-full">
-                <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-indigo-50 transition-colors">Fazer Upload</span>
-                <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('schoolLogo')} />
-              </label>
-              <button
-                onClick={() => openUrlInput('school')}
-                className="w-full bg-indigo-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-indigo-700 transition-colors"
-              >
-                Colar Link Direto
-              </button>
-            </div>
+            {currentUser && can(currentUser.role, 'update', 'settings') && (
+              <div className="absolute inset-0 cursor-pointer flex flex-col gap-3 items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-[#0A1128]/70 backdrop-blur-md p-6">
+                <label className="w-full">
+                  <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-indigo-50 transition-colors">Fazer Upload</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('schoolLogo')} />
+                </label>
+                <button
+                  onClick={() => openUrlInput('school')}
+                  className="w-full bg-indigo-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-indigo-700 transition-colors"
+                >
+                  Colar Link Direto
+                </button>
+              </div>
+            )}
           </div>
 
           {showUrlInput.school && (
@@ -213,18 +215,20 @@ const Settings: React.FC = () => {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Usando ícone padrão</p>
               </div>
             )}
-            <div className="absolute inset-0 cursor-pointer flex flex-col gap-3 items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-[#0A1128]/70 backdrop-blur-md p-6">
-              <label className="w-full">
-                <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-purple-50 transition-colors">Fazer Upload</span>
-                <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('systemLogo')} />
-              </label>
-              <button
-                onClick={() => openUrlInput('system')}
-                className="w-full bg-purple-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-purple-700 transition-colors"
-              >
-                Colar Link Direto
-              </button>
-            </div>
+            {currentUser && can(currentUser.role, 'update', 'settings') && (
+              <div className="absolute inset-0 cursor-pointer flex flex-col gap-3 items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-[#0A1128]/70 backdrop-blur-md p-6">
+                <label className="w-full">
+                  <span className="block text-center bg-white px-6 py-3 rounded-2xl text-[10px] font-black text-[#0A1128] uppercase shadow-2xl tracking-widest cursor-pointer hover:bg-purple-50 transition-colors">Fazer Upload</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload('systemLogo')} />
+                </label>
+                <button
+                  onClick={() => openUrlInput('system')}
+                  className="w-full bg-purple-600 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase shadow-2xl tracking-widest hover:bg-purple-700 transition-colors"
+                >
+                  Colar Link Direto
+                </button>
+              </div>
+            )}
           </div>
 
           {showUrlInput.system && (
@@ -264,14 +268,16 @@ const Settings: React.FC = () => {
               <div key={year} className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 space-y-6">
                 <div className="flex items-center justify-between">
                   <h4 className="text-lg font-black text-slate-700">Ano Letivo {year}</h4>
-                  <button
-                    type="button"
-                    disabled={savingYear === year}
-                    onClick={() => saveCalendarByYear(year)}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    {savingYear === year ? 'Salvando...' : `Salvar ${year}`}
-                  </button>
+                  {currentUser && can(currentUser.role, 'update', 'settings') && (
+                    <button
+                      type="button"
+                      disabled={savingYear === year}
+                      onClick={() => saveCalendarByYear(year)}
+                      className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {savingYear === year ? 'Salvando...' : `Salvar ${year}`}
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
