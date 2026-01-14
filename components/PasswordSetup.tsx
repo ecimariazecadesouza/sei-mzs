@@ -9,6 +9,7 @@ const PasswordSetup: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,12 +26,38 @@ const PasswordSetup: React.FC = () => {
         setError('');
         try {
             await updatePassword(password);
+            setIsSuccess(true);
         } catch (err: any) {
             setError(err.message || 'Erro ao definir senha.');
         } finally {
             setLoading(false);
         }
     };
+
+    if (isSuccess) {
+        return (
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-50 via-white to-slate-50">
+                <div className="w-full max-w-md bg-white rounded-[48px] shadow-2xl border border-slate-100 p-12 space-y-10 text-center animate-in zoom-in-95 duration-500">
+                    <div className="w-20 h-20 bg-emerald-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-200">
+                        <Shield className="text-white w-10 h-10" />
+                    </div>
+                    <div className="space-y-4">
+                        <h1 className="text-3xl font-black text-slate-800 tracking-tighter">Senha Definida!</h1>
+                        <p className="text-slate-500 font-medium">Sua conta foi protegida com sucesso. Agora você pode acessar todas as funcionalidades do SEI.</p>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setIsSettingPassword(false);
+                            window.location.reload(); // Garante atualização do estado de auth
+                        }}
+                        className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-3"
+                    >
+                        Confirmar e Acessar
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-white to-slate-50">

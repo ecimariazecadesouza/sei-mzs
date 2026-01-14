@@ -253,7 +253,6 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const updatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
-    setIsSettingPassword(false);
   };
 
   const requestPasswordReset = async (email: string) => {
