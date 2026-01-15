@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Subject } from '../types';
 import { Pencil, Trash2 } from 'lucide-react';
+import { sortSubjects } from '../lib/sorting';
 
 const Subjects: React.FC = () => {
   const { data, addSubject, updateSubject, deleteItem } = useSchool();
@@ -42,12 +43,7 @@ const Subjects: React.FC = () => {
   const displaySubjects = useMemo(() => {
     return data.subjects
       .filter(s => String(s.year) === filterYear)
-      .sort((a, b) => {
-        if (a.periodicity === b.periodicity) {
-          return a.name.localeCompare(b.name);
-        }
-        return a.periodicity === 'Anual' ? -1 : 1;
-      });
+      .sort(sortSubjects);
   }, [data.subjects, filterYear]);
 
   const resetForm = () => {

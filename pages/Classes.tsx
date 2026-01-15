@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Class, Student, Grade } from '../types';
 import { can } from '../lib/permissions';
+import { sortSubjects, sortClasses } from '../lib/sorting';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -140,7 +141,7 @@ const Classes: React.FC = () => {
   const filteredClasses = useMemo(() => {
     return data.classes
       .filter(c => c.year === filterYear)
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      .sort(sortClasses);
   }, [data.classes, filterYear]);
 
   return (
@@ -220,10 +221,7 @@ const Classes: React.FC = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-6 bg-slate-50 rounded-[32px] max-h-56 overflow-y-auto border border-slate-200 shadow-inner">
-                  {data.subjects.sort((a, b) => {
-                    if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-                    return a.periodicity === 'Anual' ? -1 : 1;
-                  }).map(sub => (
+                  {data.subjects.sort(sortSubjects).map(sub => (
                     <div
                       key={sub.id}
                       onClick={() => setSelectedSubjects(prev => prev.includes(sub.id) ? prev.filter(s => s !== sub.id) : [...prev, sub.id])}
@@ -394,10 +392,7 @@ const Classes: React.FC = () => {
             <div className="p-10 max-h-[65vh] overflow-y-auto space-y-4 custom-scrollbar">
               {data.subjects
                 .filter(s => viewingSubjects.subjectIds?.includes(s.id))
-                .sort((a, b) => {
-                  if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-                  return a.periodicity === 'Anual' ? -1 : 1;
-                })
+                .sort(sortSubjects)
                 .map(sub => (
                   <div key={sub.id} className="flex items-center justify-between p-5 bg-white rounded-3xl border border-slate-100 group hover:border-indigo-200 transition-all shadow-sm">
                     <div className="flex items-center space-x-4">
@@ -491,10 +486,7 @@ const Classes: React.FC = () => {
                 const classStudents = data.students.filter(s => String(s.classId) === String(viewingPerformance.id) && s.status === 'Cursando');
                 const subjects = data.subjects
                   .filter(s => viewingPerformance.subjectIds?.includes(s.id))
-                  .sort((a, b) => {
-                    if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-                    return a.periodicity === 'Anual' ? -1 : 1;
-                  });
+                  .sort(sortSubjects);
 
                 if (classStudents.length === 0 || subjects.length === 0) {
                   return (

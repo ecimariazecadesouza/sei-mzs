@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Teacher, Assignment, Class, Subject } from '../types';
+import { sortSubjects, sortClasses } from '../lib/sorting';
 
 const Icon = ({ name, className = "w-5 h-5" }: { name: string, className?: string }) => {
   const icons: Record<string, React.ReactNode> = {
@@ -37,7 +38,7 @@ const Teachers: React.FC = () => {
 
   // Filtragem de dados baseada no ano letivo
   const classesDoAno = useMemo(() =>
-    data.classes.filter(c => c.year === filterYear).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    data.classes.filter(c => c.year === filterYear).sort(sortClasses)
     , [data.classes, filterYear]);
 
   const disciplinasDaCarga = useMemo(() => {
@@ -52,7 +53,7 @@ const Teachers: React.FC = () => {
 
     return data.subjects
       .filter(s => subjectsInClasses.has(String(s.id)))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(sortSubjects);
   }, [selectedClasses, data.classes, data.subjects]);
 
   const atribuicoesDoAno = useMemo(() => {

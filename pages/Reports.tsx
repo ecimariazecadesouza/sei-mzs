@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student, Grade, Subject, Class, SchoolSettings } from '../types';
 import jsPDF from 'jspdf';
+import { sortSubjects, sortClasses } from '../lib/sorting';
 
 // --- Interfaces de Cálculo ---
 interface GradeCalculation {
@@ -56,10 +57,7 @@ const calculateStudentGrades = (student: Student, classe: Class | null | undefin
   if (!student || !classe) return [];
   const classSubjects = allSubjects
     .filter(sub => classe.subjectIds?.includes(sub.id))
-    .sort((a, b) => {
-      if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-      return a.periodicity === 'Anual' ? -1 : 1;
-    });
+    .sort(sortSubjects);
 
   return classSubjects.map(sub => {
     const grades = allGrades.filter(g => g.studentId === student.id && g.subjectId === sub.id);
@@ -254,7 +252,7 @@ const Reports: React.FC = () => {
   // ✅ Estado para rastrear quem já foi baixado nesta sessão
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
 
-  const yearClasses = useMemo(() => data.classes.filter(c => c.year === filterYear), [data.classes, filterYear]);
+  const yearClasses = useMemo(() => data.classes.filter(c => c.year === filterYear).sort(sortClasses), [data.classes, filterYear]);
 
   const filteredStudents = useMemo(() => {
     const classIds = new Set(yearClasses.map(c => String(c.id)));
@@ -392,8 +390,8 @@ const Reports: React.FC = () => {
                   onClick={handleDownload}
                   disabled={isGenerating}
                   className={`flex-1 md:flex-none px-12 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] ${downloadedIds.has(selectedStudent.id)
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                 >
                   {downloadedIds.has(selectedStudent.id) ? 'Baixar Novamente (PDF)' : 'Gerar e Baixar PDF'}
@@ -462,8 +460,8 @@ const Reports: React.FC = () => {
                           <td className="p-4 font-bold uppercase text-[9px] text-slate-500">{g.performanceLabel}</td>
                           <td className="p-4">
                             <span className={`px-2 py-1 rounded-lg uppercase font-black text-[8px] border shadow-sm ${g.situationLabel === 'Aprovado' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                g.situationLabel === 'Reprovado' ? 'bg-red-50 text-red-600 border-red-100' :
-                                  'bg-slate-100 text-slate-500 border-slate-200'
+                              g.situationLabel === 'Reprovado' ? 'bg-red-50 text-red-600 border-red-100' :
+                                'bg-slate-100 text-slate-500 border-slate-200'
                               }`}>
                               {g.situationLabel}
                             </span>

@@ -4,6 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Student, AcademicYearConfig } from '../types';
 import { can } from '../lib/permissions';
 import jsPDF from 'jspdf';
+import { sortSubjects, sortClasses } from '../lib/sorting';
 
 // Função para converter links do Google Drive em links diretos de imagem
 const formatGoogleDriveLink = (url: string | null): string => {
@@ -202,10 +203,10 @@ const GradeManagement: React.FC = () => {
         .filter(a => String(a.teacherId) === String(teacher.id))
         .map(a => a.classId)
       );
-      return classes.filter(c => myClassIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      return classes.sort(sortClasses);
     }
 
-    return classes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    return classes.sort(sortClasses);
   }, [data.classes, data.assignments, data.teachers, selectedYear, currentUser]);
 
   const classSubjects = useMemo(() => {
@@ -224,10 +225,7 @@ const GradeManagement: React.FC = () => {
       subjects = subjects.filter(s => mySubjectIds.has(s.id));
     }
 
-    return subjects.sort((a, b) => {
-      if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-      return a.periodicity === 'Anual' ? -1 : 1;
-    });
+    return subjects.sort(sortSubjects);
   }, [selectedClass, selectedClassId, data.subjects, data.assignments, data.teachers, currentUser]);
 
   useEffect(() => {

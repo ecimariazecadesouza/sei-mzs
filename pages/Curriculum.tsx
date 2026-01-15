@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolData } from '../types';
 import { Pencil, Trash2, Plus, Folder, ChevronDown } from 'lucide-react';
+import { sortSubjects } from '../lib/sorting';
 
 // --- Icons ---
 const Icons = {
@@ -56,10 +57,7 @@ const SubjectRow: React.FC<{ subject: any; onEdit: () => void; onDelete: () => v
 
 const SubAreaBlock: React.FC<{ subArea: any; subjects: any[]; onAddSubject: () => void; onEdit: () => void; onDelete: () => void; onEditSubject: (s: any) => void; onDeleteSubject: (s: any) => void; }> = ({ subArea, subjects, onAddSubject, onEdit, onDelete, onEditSubject, onDeleteSubject }) => {
   const sortedSubjects = useMemo(() => {
-    return [...subjects].sort((a, b) => {
-      if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-      return a.periodicity === 'Anual' ? -1 : 1;
-    });
+    return [...subjects].sort(sortSubjects);
   }, [subjects]);
 
   return (

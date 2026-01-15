@@ -4,6 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Subject, Student, Grade, Class } from '../types';
 import { can } from '../lib/permissions';
 import jsPDF from 'jspdf';
+import { sortSubjects, sortClasses } from '../lib/sorting';
 
 // --- Interfaces para cálculos ---
 interface SubjectResult {
@@ -73,7 +74,7 @@ const ClassCouncil: React.FC = () => {
     , [data.classes, filters.turmaId]);
 
   const classesDoAno = useMemo(() =>
-    data.classes.filter(c => c.year === filters.year).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    data.classes.filter(c => c.year === filters.year).sort(sortClasses)
     , [data.classes, filters.year]);
 
   const disciplinasTurma = useMemo(() => {
@@ -90,10 +91,7 @@ const ClassCouncil: React.FC = () => {
       });
     }
 
-    return subjects.sort((a, b) => {
-      if (a.periodicity === b.periodicity) return a.name.localeCompare(b.name);
-      return a.periodicity === 'Anual' ? -1 : 1;
-    });
+    return subjects.sort(sortSubjects);
   }, [turmaAtual, data.subjects, data.subAreas, data.knowledgeAreas, filters.type]);
 
   const rows = useMemo(() => {
