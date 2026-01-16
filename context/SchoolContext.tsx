@@ -139,11 +139,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (result.status === 'fulfilled') {
           const { data: resData } = result.value;
           const items = (resData || []);
-          if (stateKey === 'settings' && items.length > 0) {
-            newData.settings = items[0];
-          } else {
-            newData[stateKey as keyof SchoolData] = items;
-          }
+
+          setData(prev => {
+            const updated = { ...prev };
+            if (stateKey === 'settings' && items.length > 0) {
+              updated.settings = items[0];
+            } else {
+              (updated as any)[stateKey] = items;
+            }
+            return updated;
+          });
         }
       });
       setData(newData);
@@ -224,15 +229,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setCurrentUser(user);
         setData(prev => ({ ...prev, users: [user] }));
 
+        // Notify success
+        window.alert('Cadastro realizado com sucesso! Bem-vindo ao SEI.');
+
         // Then fetch full data
         await fetchData();
 
-        // Force a small delay and check if we are redirected, if not, force it
-        setTimeout(() => {
-          if (window.location.pathname !== '/') {
-            window.location.href = '/';
-          }
-        }, 500);
+        // Force redirection
+        window.location.href = '/';
       }
     } catch (error: any) {
       console.error("createFirstAdmin Error:", error);
