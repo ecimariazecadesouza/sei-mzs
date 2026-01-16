@@ -115,17 +115,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isSettingPassword, setIsSettingPassword] = useState(false);
 
   const fetchData = useCallback(async () => {
+    // Definitive Fix - Correcting syntax and state merging
     setLoading(true);
     setDbError(null);
 
     try {
-      console.log("[FetchData] Starting data fetch sync...");
-      // Check setup status first
+      console.log("[FetchData] Initiating fresh synchronization...");
       const { data: setupRes } = await api.get('/auth/setup-status');
       setNeedsSetup(setupRes.needsSetup);
 
       if (setupRes.needsSetup) {
-        console.log("[FetchData] System needs setup, skipping generic fetches.");
         setLoading(false);
         return;
       }
@@ -133,27 +132,22 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const tables = Object.entries(TABLE_MAP);
       await Promise.all(tables.map(async ([stateKey, endpoint]) => {
         try {
-          console.log(`[FetchData] Fetching ${endpoint}...`);
           const { data: items } = await api.get(`/${endpoint}`);
-          console.log(`[FetchData] ${endpoint} success:`, Array.isArray(items) ? items.length : 'Object', "items");
-
           setData(prev => {
             const updated = { ...prev };
-            if (stateKey === 'settings' && Array.isArray(items) && items.length > 0) {
-              updated.settings = items[0];
-            } else if (stateKey === 'settings' && !Array.isArray(items)) {
-              updated.settings = items;
+            if (stateKey === 'settings') {
+              updated.settings = Array.isArray(items) ? (items[0] || updated.settings) : (items || updated.settings);
             } else {
-              (updated as any)[stateKey] = items || [];
+              (updated as any)[stateKey] = Array.isArray(items) ? items : [];
             }
             return updated;
           });
         } catch (e) {
-          console.error(`[FetchData] Error fetching ${endpoint}:`, e);
+          console.error(`[FetchData] Error in ${endpoint}:`, e);
         }
       }));
     } catch (error: any) {
-      console.error("[FetchData] Global Fetch Error:", error);
+      console.error("[FetchData] Critical failure:", error);
       setDbError('CONNECTION_ERROR');
     } finally {
       setLoading(false);
