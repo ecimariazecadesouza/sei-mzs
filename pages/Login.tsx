@@ -35,10 +35,10 @@ const Login: React.FC = () => {
 
   const handleFirstSetup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) return;
+    if (!name || !email || !password) return;
     setIsSetupLoading(true);
     try {
-      await createFirstAdmin({ name, email });
+      await createFirstAdmin({ name, email, password });
     } catch (err: any) {
       setError(err.message || 'Erro ao configurar administrador.');
     } finally {
@@ -186,13 +186,13 @@ CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Seu E-mail (Google/MS)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Sua Senha Mestra</label>
               <input
                 required
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="seu-email@gmail.com"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
                 className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-emerald-300 transition-all shadow-inner"
               />
             </div>

@@ -4,6 +4,49 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 
 export class AuthController {
+    async setupStatus(req: Request, res: Response) {
+        try {
+            const userCount = await prisma.user.count();
+            return res.json({ needsSetup: userCount === 0 });
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to check setup status' });
+        }
+    }
+
+    async setupAdmin(req: Request, res: Response) {
+        const { email, password, name } = req.body;
+
+        try {
+            const userCount = await prisma.user.count();
+            if (userCount > 0) {
+                return res.status(403).json({ error: 'Setup already completed' });
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 8);
+
+            const user = await prisma.user.create({
+                data: {
+                    email,
+                    password: hashedPassword,
+                    name,
+                    role: 'admin_ti',
+                },
+            });
+
+            const token = jwt.sign(
+                { id: user.id, role: user.role },
+                process.env.JWT_SECRET as string,
+                { expiresIn: '1d' }
+            );
+
+            const { password: _, ...userWithoutPassword } = user;
+            return res.json({ user: userWithoutPassword, token });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ error: 'Setup failed' });
+        }
+    }
+
     async register(req: Request, res: Response) {
         const { email, password, name, role } = req.body;
 

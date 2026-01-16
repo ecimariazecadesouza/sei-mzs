@@ -115,31 +115,30 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setDbError(null);
-    const newData: any = { ...data };
-    const tables = Object.entries(TABLE_MAP);
 
     try {
+      // First, check if setup is needed
+      const { data: setupRes } = await api.get('/auth/setup-status');
+
+      const newData: any = { ...data };
+      const tables = Object.entries(TABLE_MAP);
+
       const results = await Promise.allSettled(
         tables.map(async ([stateKey, tableName]) => {
+          // Skip general tables if no users exist (avoid 401)
+          if (setupRes.needsSetup && tableName !== 'users' && tableName !== 'settings') {
+            return { stateKey, data: [] };
+          }
           const { data: resData } = await api.get(`/${tableName}`);
           return { stateKey, data: resData };
         })
       );
 
-      results.forEach((result: any, index) => { // Type assertion for simplification
+      results.forEach((result: any, index) => {
         const [stateKey] = tables[index];
         if (result.status === 'fulfilled') {
           const { data: resData } = result.value;
-          // Assuming API returns camelCase or we convert it.
-          // If Prisma returns original names (which might be snake_case in DB but mapped in Prisma?)
-          // Prisma returns object keys as defined in model. My model uses camelCase for fields!
-          // So I might NOT need toCamel if the API returns direct Prisma objects.
-          // BUT, I defined `@@map` in Prisma schema, so fields are snake_case in DB, but Prisma Client returns camelCase (e.g. `registrationNumber`).
-          // So I probably don't need `toCamel` anymore if I use Prisma properly!
-          // However, existing code expects `toCamel` to ensure consistency.
-          // Let's check `toCamel`.
-          // If Prisma returns camelCase, `toCamel` won't hurt if it's already camel.
-          const items = (resData || []); // Prisma returns array directly
+          const items = (resData || []);
           if (stateKey === 'settings' && items.length > 0) {
             newData.settings = items[0];
           } else {
@@ -217,14 +216,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }));
   };
 
-  const createFirstAdmin = async (u: { name: string, email: string }) => {
-    const payload = { ...u, role: 'admin_ti' as UserRole };
-    const { data: res } = await api.post('/users', payload); // removed toSnake, assume API handles
+  const createFirstAdmin = async (u: { name: string, email: string, password?: string }) => {
+    const { data: res } = await api.post('/auth/setup-admin', u);
     if (res) {
-      const newUser = res; // Prisma returns camelCase
-      setData(prev => ({ ...prev, users: [newUser] }));
-      setCurrentUser(newUser);
-      localStorage.setItem('sei_session', JSON.stringify(newUser));
+      const { user, token } = res;
+      localStorage.setItem('token', token);
+      setData(prev => ({ ...prev, users: [user] }));
+      setCurrentUser(user);
     }
   };
 
