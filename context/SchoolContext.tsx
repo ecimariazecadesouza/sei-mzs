@@ -83,7 +83,7 @@ export interface SchoolContextType {
   updateSettings: (s: Partial<SchoolSettings>) => Promise<void>;
   updateAcademicYearConfig: (config: AcademicYearConfig) => Promise<void>;
   addUser: (u: Omit<AppUser, 'id'>) => Promise<void>;
-  createFirstAdmin: (u: { name: string, email: string }) => Promise<void>;
+  createFirstAdmin: (u: { name: string, email: string, password?: string }) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   isSettingPassword: boolean;
