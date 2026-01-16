@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String   // Added for local auth
+  role      String   @default("guest") // stored as string, validated in app
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Student {
+  id                 String   @id @default(uuid())
+  name               String
+  registrationNumber String   @unique @map("registration_number")
+  status             String
+  classId            String   @map("class_id")
+  class              Class    @relation(fields: [classId], references: [id])
+  grades             Grade[]
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("students")
+}
+
+model Teacher {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  assignments Assignment[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("teachers")
+}
+
+model FormationType {
+  id             String          @id @default(uuid())
+  name           String
+  knowledgeAreas KnowledgeArea[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@map("formation_types")
+}
+
+model KnowledgeArea {
+  id              String        @id @default(uuid())
+  name            String
+  formationTypeId String        @map("formation_type_id")
+  formationType   FormationType @relation(fields: [formationTypeId], references: [id])
+  subAreas        SubArea[]
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("knowledge_areas")
+}
+
+model SubArea {
+  id              String        @id @default(uuid())
+  name            String
+  knowledgeAreaId String        @map("knowledge_area_id")
+  knowledgeArea   KnowledgeArea @relation(fields: [knowledgeAreaId], references: [id])
+  subjects        Subject[]
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("sub_areas")
+}
+
+model Subject {
+  id          String       @id @default(uuid())
+  name        String
+  subAreaId   String       @map("sub_area_id")
+  subArea     SubArea      @relation(fields: [subAreaId], references: [id])
+  periodicity String
+  semester    String?
+  year        String
+  code        String?
+  color       String?
+  assignments Assignment[]
+  grades      Grade[]
+  classes     Class[]      @relation("ClassSubjects") // M-N relation implicit
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("subjects")
+}
+
+model Class {
+  id             String       @id @default(uuid())
+  name           String
+  enrollmentType String       @map("enrollment_type")
+  year           String
+  shift          String
+  students       Student[]
+  assignments    Assignment[]
+  subjects       Subject[]    @relation("ClassSubjects")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("classes")
+}
+
+model Assignment {
+  id        String   @id @default(uuid())
+  teacherId String   @map("teacher_id")
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  subjectId String   @map("subject_id")
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  classId   String   @map("class_id")
+  class     Class    @relation(fields: [classId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("assignments")
+}
+
+model Grade {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  student   Student  @relation(fields: [studentId], references: [id])
+  subjectId String   @map("subject_id")
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  term      Int
+  value     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([studentId, subjectId, term])
+  @@map("grades")
+}
+
+model SchoolSettings {
+  id         Int      @id @default(1)
+  schoolLogo String?  @map("school_logo")
+  systemLogo String?  @map("system_logo")
+  schoolName String   @default("Sistema Escolar Integrado - SEI") @map("school_name")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model AcademicYearConfig {
+  id        String    @id @default(uuid())
+  year      String    @unique
+  b1End     DateTime? @map("b1_end")
+  b2End     DateTime? @map("b2_end")
+  b3End     DateTime? @map("b3_end")
+  b4End     DateTime? @map("b4_end")
+  recStart  DateTime? @map("rec_start")
+  recEnd    DateTime? @map("rec_end")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("academic_years")
+}

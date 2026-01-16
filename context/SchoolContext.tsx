@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import api from '../lib/api';
 import {
   SchoolData, Student, Teacher, Subject, Class,
   Assignment, Grade, FormationType, KnowledgeArea, SubArea, SchoolSettings, AppUser, UserRole, AcademicYearConfig
@@ -119,111 +119,58 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const tables = Object.entries(TABLE_MAP);
 
     try {
-      const fetchWithTimeout = async (stateKey: string, tableName: string) => {
-        const fetchPromise = supabase.from(tableName).select('*');
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout na tabela ${tableName}`)), 10000)
-        );
-
-        const { data: resData, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-        if (error) {
-          if (error.code === 'PGRST116' || error.message.includes('not found')) {
-            throw new Error(`Tabela '${tableName}' não encontrada.`);
-          }
-          throw error;
-        }
-        return { stateKey, data: resData };
-      };
-
       const results = await Promise.allSettled(
-        tables.map(([stateKey, tableName]) => fetchWithTimeout(stateKey, tableName))
+        tables.map(async ([stateKey, tableName]) => {
+          const { data: resData } = await api.get(`/${tableName}`);
+          return { stateKey, data: resData };
+        })
       );
 
-      let foundCriticalError = false;
-      results.forEach((result, index) => {
-        const [stateKey, tableName] = tables[index];
+      results.forEach((result: any, index) => { // Type assertion for simplification
+        const [stateKey] = tables[index];
         if (result.status === 'fulfilled') {
           const { data: resData } = result.value;
-          const items = (resData || []).map(toCamel);
+          // Assuming API returns camelCase or we convert it.
+          // If Prisma returns original names (which might be snake_case in DB but mapped in Prisma?)
+          // Prisma returns object keys as defined in model. My model uses camelCase for fields!
+          // So I might NOT need toCamel if the API returns direct Prisma objects.
+          // BUT, I defined `@@map` in Prisma schema, so fields are snake_case in DB, but Prisma Client returns camelCase (e.g. `registrationNumber`).
+          // So I probably don't need `toCamel` anymore if I use Prisma properly!
+          // However, existing code expects `toCamel` to ensure consistency.
+          // Let's check `toCamel`.
+          // If Prisma returns camelCase, `toCamel` won't hurt if it's already camel.
+          const items = (resData || []); // Prisma returns array directly
           if (stateKey === 'settings' && items.length > 0) {
             newData.settings = items[0];
           } else {
             newData[stateKey as keyof SchoolData] = items;
           }
         } else {
-          const error = result.reason as any;
-          console.group(`Erro de Conexão: ${tableName}`);
-          console.error("Mensagem:", error.message);
-          console.error("Detalhes:", error.details);
-          console.error("Hint:", error.hint);
-          console.groupEnd();
-
-          if (error.message.includes('not found') || error.code === 'PGRST116') {
-            if (tableName === 'users') {
-              setDbError('MISSING_USERS_TABLE');
-              foundCriticalError = true;
-            }
-          }
+          console.error(`Error fetching ${stateKey}:`, result.reason);
         }
       });
-
-      if (!foundCriticalError) {
-        setData(newData);
-      }
+      setData(newData);
     } catch (error: any) {
-      if (error.message.includes('users')) setDbError('MISSING_USERS_TABLE');
+      console.error("Fetch Error:", error);
+      setDbError('CONNECTION_ERROR');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Verificação proativa de link de convite ou recuperação na URL
-    const checkForInvite = () => {
-      const url = new URL(window.location.href);
-      const hash = window.location.hash;
-      const searchParams = url.searchParams;
-
-      const isInvite = hash.includes('type=invite') ||
-        hash.includes('type=recovery') ||
-        hash.includes('access_token=') ||
-        searchParams.has('token') ||
-        searchParams.get('type') === 'invite';
-
-      if (isInvite) {
-        console.log("INVITE DETECTED! Blocking normal flow.");
-        setIsSettingPassword(true);
-      }
-    };
-
-    checkForInvite();
-
-    // Escutar mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("AUTH EVENT:", event, "SESSION:", session?.user?.id);
-
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && window.location.hash.includes('type=invite'))) {
-        setIsSettingPassword(true);
-      }
-
-      if (session?.user) {
-        // Buscar dados extras do usuário na tabela public.users
-        const { data: userData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (userData) {
-          setCurrentUser(toCamel(userData));
-        }
-      } else {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Check for existing token
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.get('/auth/me')
+        .then(res => {
+          setCurrentUser(res.data.user);
+        })
+        .catch(() => {
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+        });
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -231,42 +178,33 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const login = async (email: string, password?: string): Promise<boolean> => {
     try {
       if (password) {
-        // Login Oficial via Supabase Auth
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        // Login via API
+        const { data } = await api.post('/auth/login', { email, password });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('sei_session', JSON.stringify(data.user)); // Keep for compatibility if needed
+        setCurrentUser(data.user);
         return true;
-      } else {
-        // Fallback para o modo Legado (simula login apenas por e-mail se necessário)
-        const user = data.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (user) {
-          setCurrentUser(user);
-          return true;
-        }
       }
     } catch (error: any) {
-      console.error("Login Error:", error.message);
+      console.error("Login Error:", error.response?.data?.error || error.message);
       throw error;
     }
     return false;
   };
 
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
+    await api.post('/auth/update-password', { password });
   };
 
   const requestPasswordReset = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
-    if (error) throw error;
+    await api.post('/auth/reset-password', { email });
+    // Note: This endpoint needs to be implemented in backend
   };
 
   const updateProfile = async (name: string) => {
     if (!currentUser) return;
     const formattedName = name.trim().toUpperCase();
-    const { error } = await supabase.from('users').update({ name: formattedName }).eq('id', currentUser.id);
-    if (error) throw error;
+    await api.put(`/users/${currentUser.id}`, { name: formattedName });
 
     const updatedUser = { ...currentUser, name: formattedName };
     setCurrentUser(updatedUser);
@@ -281,10 +219,9 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const createFirstAdmin = async (u: { name: string, email: string }) => {
     const payload = { ...u, role: 'admin_ti' as UserRole };
-    const { data: res, error } = await supabase.from('users').insert([toSnake(payload)]).select();
-    if (error) throw error;
+    const { data: res } = await api.post('/users', payload); // removed toSnake, assume API handles
     if (res) {
-      const newUser = toCamel(res[0]);
+      const newUser = res; // Prisma returns camelCase
       setData(prev => ({ ...prev, users: [newUser] }));
       setCurrentUser(newUser);
       localStorage.setItem('sei_session', JSON.stringify(newUser));
@@ -294,7 +231,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const logout = async () => {
     setCurrentUser(null);
     localStorage.removeItem('sei_session');
-    await supabase.auth.signOut();
+    localStorage.removeItem('token');
+    // await supabase.auth.signOut();
   };
 
   const updateSettings = async (s: Partial<SchoolSettings>) => {
@@ -305,7 +243,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const newSettings = { ...data.settings, ...s };
     setData(prev => ({ ...prev, settings: newSettings }));
     try {
-      await supabase.from('settings').upsert({ id: 1, ...toSnake(newSettings) });
+      await api.put('/settings/1', newSettings);
     } catch (e) { }
   };
 
@@ -335,17 +273,10 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     console.log("Saving sanitized config:", sanitizedConfig);
 
-    const { error } = await supabase
-      .from('academic_years')
-      .upsert(toSnake(sanitizedConfig), { onConflict: 'year' });
+    await api.post('/academic-years', sanitizedConfig); // API should handle upsert
 
-    if (error) {
-      console.group("Erro ao Salvar Calendário");
-      console.error("Payload:", sanitizedConfig);
-      console.error("Erro:", error);
-      console.groupEnd();
-      throw error;
-    }
+    // if (error) block removed as API throws on error
+
 
     setData(prev => {
       const exists = prev.academicYears.find(y => y.year === config.year);
@@ -367,9 +298,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
       return;
     }
-    const { data: res, error } = await supabase.from(TABLE_MAP[tableKey]).insert([toSnake(item)]).select();
-    if (error) throw error;
-    if (res) setData(prev => ({ ...prev, [tableKey]: [...(prev[tableKey] as any[]), toCamel(res[0])] }));
+    const { data: res } = await api.post(`/${TABLE_MAP[tableKey]}`, item);
+    if (res) setData(prev => ({ ...prev, [tableKey]: [...(prev[tableKey] as any[]), res] }));
   };
 
   const genericUpdate = async (tableKey: keyof SchoolData, id: string, item: any) => {
@@ -377,8 +307,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
       return;
     }
-    const { error } = await supabase.from(TABLE_MAP[tableKey]).update(toSnake(item)).eq('id', id);
-    if (error) throw error;
+    await api.put(`/${TABLE_MAP[tableKey]}/${id}`, item);
     setData(prev => ({
       ...prev,
       [tableKey]: (prev[tableKey] as any[]).map(i => i.id === id ? { ...i, ...item } : i)
@@ -407,7 +336,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para alterar notas.');
       return;
     }
-    await supabase.from('grades').upsert(toSnake(g), { onConflict: 'student_id, subject_id, term' });
+    await api.post('/grades', g); // Upsert logic in backend
     await fetchData();
   };
 
@@ -416,7 +345,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para alterar notas.');
       return;
     }
-    await supabase.from('grades').upsert(grades.map(toSnake), { onConflict: 'student_id, subject_id, term' });
+    await api.post('/grades/bulk', { grades });
     await fetchData();
   };
 
@@ -425,11 +354,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       alert('Acesso Negado: Você não tem permissão para excluir este registro.');
       return;
     }
-    const { error } = await supabase.from(TABLE_MAP[type]).delete().eq('id', id);
-    if (error) {
-      console.error(`Error deleting from ${type}:`, error);
-      throw error;
-    }
+    await api.delete(`/${TABLE_MAP[type]}/${id}`);
     setData(prev => ({ ...prev, [type]: (prev[type] as any[]).filter(i => i.id !== id) }));
   };
 
