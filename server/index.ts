@@ -19,7 +19,7 @@ app.use('/api', routes);
 // Serve static files from the React app
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distPath = path.join(__dirname, '../../dist'); // Adjust path relative to server/index.ts
+const distPath = path.join(__dirname, '../dist'); // Adjust path relative to server/index.ts
 
 app.use(express.static(distPath));
 
