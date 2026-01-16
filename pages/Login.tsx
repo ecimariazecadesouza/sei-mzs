@@ -27,7 +27,11 @@ const Login: React.FC = () => {
         setError('Acesso negado. Verifique seu e-mail e senha.');
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao realizar login.');
+      const errorMsg = err.response?.data?.detail
+        ? `${err.response.data.error || 'Erro'}: ${err.response.data.detail}`
+        : (err.response?.data?.error || err.message || 'Erro ao realizar login.');
+      setError(errorMsg);
+      console.error('Frontend Login Error:', err);
     } finally {
       setIsSetupLoading(false);
     }

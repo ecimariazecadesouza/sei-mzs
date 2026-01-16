@@ -118,9 +118,13 @@ export class AuthController {
             const { password: _, ...userWithoutPassword } = user;
 
             return res.json({ user: userWithoutPassword, token });
-        } catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Login failed' });
+        } catch (error: any) {
+            console.error('Login Error Detail:', error);
+            return res.status(500).json({
+                error: 'Login failed',
+                detail: error.message,
+                code: error.code
+            });
         }
     }
 
@@ -137,8 +141,13 @@ export class AuthController {
             const { password: _, ...userWithoutPassword } = user;
             return res.json({ user: userWithoutPassword });
 
-        } catch (error) {
-            return res.status(500).json({ error: 'Failed to fetch user' });
+        } catch (error: any) {
+            console.error('Fetch Me Error Detail:', error);
+            return res.status(500).json({
+                error: 'Failed to fetch user',
+                detail: error.message,
+                code: error.code
+            });
         }
     }
 }
