@@ -106,7 +106,7 @@ const Login: React.FC = () => {
             <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 text-4xl shadow-inner border border-amber-100">⚠️</div>
             <div>
               <h1 className="text-3xl font-black text-slate-800 tracking-tighter">Banco de Dados Incompleto</h1>
-              <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">A tabela 'users' não foi encontrada no Supabase.</p>
+              <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">O banco de dados MySQL está com tabelas pendentes.</p>
             </div>
           </div>
 
@@ -116,7 +116,7 @@ const Login: React.FC = () => {
               Siga os passos abaixo:
             </p>
             <ol className="text-xs text-slate-500 space-y-2 list-decimal list-inside font-bold uppercase tracking-tight">
-              <li>Acesse o seu projeto no <a href="https://supabase.com/dashboard" target="_blank" className="text-indigo-600 underline">Dashboard do Supabase</a></li>
+              <li>Verifique o status do seu serviço MySQL no Railway</li>
               <li>Clique no menu <strong>SQL Editor</strong> na lateral esquerda</li>
               <li>Clique em <strong>New Query</strong> e cole o código abaixo:</li>
             </ol>
