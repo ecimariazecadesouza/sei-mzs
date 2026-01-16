@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && tsc -p tsconfig.server.json",
+    "build": "tsc && vite build && esbuild server/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist-server/index.js --packages=external",
     "preview": "vite preview",
-    "start": "node dist-server/server/index.js",
+    "start": "node dist-server/index.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
