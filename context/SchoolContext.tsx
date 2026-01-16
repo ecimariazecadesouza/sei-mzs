@@ -57,6 +57,7 @@ export interface SchoolContextType {
   data: SchoolData;
   loading: boolean;
   dbError: string | null;
+  needsSetup: boolean;
   currentUser: AppUser | null;
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -96,6 +97,7 @@ const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
 export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [data, setData] = useState<SchoolData>({
     students: [], teachers: [], subjects: [], classes: [],
     assignments: [], grades: [], formations: [], knowledgeAreas: [], subAreas: [],
@@ -119,6 +121,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       // First, check if setup is needed
       const { data: setupRes } = await api.get('/auth/setup-status');
+      setNeedsSetup(setupRes.needsSetup);
 
       const newData: any = { ...data };
       const tables = Object.entries(TABLE_MAP);
@@ -388,7 +391,9 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const value = useMemo(() => ({
-    data, loading, dbError, currentUser, login, logout, updateProfile, fetchData,
+    data, loading, dbError, needsSetup,
+    currentUser, login, logout,
+    updateProfile, fetchData,
     addStudent, updateStudent, addTeacher, updateTeacher,
     addSubject, updateSubject, addClass, updateClass,
     addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
