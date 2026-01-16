@@ -119,288 +119,290 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setDbError(null);
 
     try {
-      // First, check if setup is needed
+      console.log("[FetchData] Starting data fetch sync...");
+      // Check setup status first
       const { data: setupRes } = await api.get('/auth/setup-status');
       setNeedsSetup(setupRes.needsSetup);
 
-      const newData: any = { ...data };
-      const tables = Object.entries(TABLE_MAP);
+      if (setupRes.needsSetup) {
+        console.log("[FetchData] System needs setup, skipping generic fetches.");
+        setLoading(false);
+        return;
+      }
 
-      const results = await Promise.allSettled(
-        tables.map(async ([stateKey, tableName]) => {
-          // Skip ALL generic tables if setup is needed to avoid 401 errors
-          if (setupRes.needsSetup) {
-            return { stateKey, data: [] };
-          }
-          const { data: resData } = await api.get(`/${tableName}`);
-          return { stateKey, data: resData };
+      const tables = Object.entries(TABLE_MAP);
+      await Promise.all(tables.map(async ([stateKey, endpoint]) => {
+        try {
+          console.log(`[FetchData] Fetching ${endpoint}...`);
           const { data: items } = await api.get(`/${endpoint}`);
-          console.log(`[FetchData] ${endpoint} result:`, items.length, "items");
+          console.log(`[FetchData] ${endpoint} success:`, Array.isArray(items) ? items.length : 'Object', "items");
 
           setData(prev => {
             const updated = { ...prev };
-            if (stateKey === 'settings' && items.length > 0) {
+            if (stateKey === 'settings' && Array.isArray(items) && items.length > 0) {
               updated.settings = items[0];
+            } else if (stateKey === 'settings' && !Array.isArray(items)) {
+              updated.settings = items;
             } else {
-              (updated as any)[stateKey] = items;
+              (updated as any)[stateKey] = items || [];
             }
             return updated;
           });
         } catch (e) {
           console.error(`[FetchData] Error fetching ${endpoint}:`, e);
         }
-    }));
-} catch (error: any) {
-  console.error("Fetch Error:", error);
-  setDbError('CONNECTION_ERROR');
-} finally {
-  setLoading(false);
-}
+      }));
+    } catch (error: any) {
+      console.error("[FetchData] Global Fetch Error:", error);
+      setDbError('CONNECTION_ERROR');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-useEffect(() => {
-  // Check for existing token
-  const token = localStorage.getItem('token');
-  if (token) {
-    api.get('/auth/me')
-      .then((res: any) => {
-        setCurrentUser(res.data.user);
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        setCurrentUser(null);
-      });
-  }
-}, []);
-
-useEffect(() => { fetchData(); }, [fetchData]);
-
-const login = async (email: string, password?: string): Promise<boolean> => {
-  try {
-    if (password) {
-      // Login via API
-      const { data } = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('sei_session', JSON.stringify(data.user)); // Keep for compatibility if needed
-      setCurrentUser(data.user);
-      return true;
+  useEffect(() => {
+    // Check for existing token
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.get('/auth/me')
+        .then((res: any) => {
+          setCurrentUser(res.data.user);
+        })
+        .catch(() => {
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+        });
     }
-  } catch (error: any) {
-    console.error("Login Error:", error.response?.data?.error || error.message);
-    throw error;
-  }
-  return false;
-};
+  }, []);
 
-const updatePassword = async (password: string) => {
-  await api.post('/auth/update-password', { password });
-};
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-const requestPasswordReset = async (email: string) => {
-  await api.post('/auth/reset-password', { email });
-  // Note: This endpoint needs to be implemented in backend
-};
-
-const updateProfile = async (name: string) => {
-  if (!currentUser) return;
-  const formattedName = name.trim().toUpperCase();
-  await api.put(`/users/${currentUser.id}`, { name: formattedName });
-
-  const updatedUser = { ...currentUser, name: formattedName };
-  setCurrentUser(updatedUser);
-  localStorage.setItem('sei_session', JSON.stringify(updatedUser));
-
-  // Atualiza também na lista local
-  setData(prev => ({
-    ...prev,
-    users: prev.users.map(u => u.id === currentUser.id ? updatedUser : u)
-  }));
-};
-
-const createFirstAdmin = async (u: { name: string, email: string, password?: string }) => {
-  try {
-    const { data: res } = await api.post('/auth/setup-admin', u);
-    if (res) {
-      const { user, token } = res;
-      localStorage.setItem('token', token);
-      // Important: Update state first
-      setCurrentUser(user);
-      setData(prev => ({ ...prev, users: [user] }));
-
-      // Notify success
-      window.alert('Cadastro realizado com sucesso! Bem-vindo ao SEI.');
-
-      // Then fetch full data
-      await fetchData();
-
-      // Force redirection
-      window.location.href = '/';
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    try {
+      if (password) {
+        // Login via API
+        const { data } = await api.post('/auth/login', { email, password });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('sei_session', JSON.stringify(data.user)); // Keep for compatibility if needed
+        setCurrentUser(data.user);
+        return true;
+      }
+    } catch (error: any) {
+      console.error("Login Error:", error.response?.data?.error || error.message);
+      throw error;
     }
-  } catch (error: any) {
-    console.error("createFirstAdmin Error:", error);
-    throw error;
-  }
-};
-
-const logout = async () => {
-  setCurrentUser(null);
-  localStorage.removeItem('sei_session');
-  localStorage.removeItem('token');
-  // await supabase.auth.signOut();
-};
-
-const updateSettings = async (s: Partial<SchoolSettings>) => {
-  if (!currentUser || !can(currentUser.role, 'update', 'settings')) {
-    alert('Acesso Negado: Apenas Administradores de TI podem alterar as configurações.');
-    return;
-  }
-  const newSettings = { ...data.settings, ...s };
-  setData(prev => ({ ...prev, settings: newSettings }));
-  try {
-    await api.put('/settings/1', newSettings);
-  } catch (e) { }
-};
-
-const updateAcademicYearConfig = async (config: AcademicYearConfig) => {
-  // Função para validar se a data é razoável (evita anos como 42026)
-  const validateDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    const year = parseInt(dateStr.split('-')[0]);
-    if (year < 2000 || year > 2100) return null;
-    return dateStr;
+    return false;
   };
 
-  const sanitizedConfig = {
-    year: config.year,
-    b1End: validateDate(config.b1End),
-    b2End: validateDate(config.b2End),
-    b3End: validateDate(config.b3End),
-    b4End: validateDate(config.b4End),
-    recStart: validateDate(config.recStart),
-    recEnd: validateDate(config.recEnd),
+  const updatePassword = async (password: string) => {
+    await api.post('/auth/update-password', { password });
   };
 
-  if (!currentUser || !can(currentUser.role, 'update', 'academic_years')) {
-    alert('Acesso Negado: Apenas Administradores de TI podem alterar o calendário.');
-    return;
-  }
+  const requestPasswordReset = async (email: string) => {
+    await api.post('/auth/reset-password', { email });
+    // Note: This endpoint needs to be implemented in backend
+  };
 
-  console.log("Saving sanitized config:", sanitizedConfig);
+  const updateProfile = async (name: string) => {
+    if (!currentUser) return;
+    const formattedName = name.trim().toUpperCase();
+    await api.put(`/users/${currentUser.id}`, { name: formattedName });
 
-  await api.post('/academic-years', sanitizedConfig); // API should handle upsert
+    const updatedUser = { ...currentUser, name: formattedName };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('sei_session', JSON.stringify(updatedUser));
 
-  // if (error) block removed as API throws on error
+    // Atualiza também na lista local
+    setData(prev => ({
+      ...prev,
+      users: prev.users.map(u => u.id === currentUser.id ? updatedUser : u)
+    }));
+  };
+
+  const createFirstAdmin = async (u: { name: string, email: string, password?: string }) => {
+    try {
+      const { data: res } = await api.post('/auth/setup-admin', u);
+      if (res) {
+        const { user, token } = res;
+        localStorage.setItem('token', token);
+        // Important: Update state first
+        setCurrentUser(user);
+        setData(prev => ({ ...prev, users: [user] }));
+
+        // Notify success
+        window.alert('Cadastro realizado com sucesso! Bem-vindo ao SEI.');
+
+        // Then fetch full data
+        await fetchData();
+
+        // Force redirection
+        window.location.href = '/';
+      }
+    } catch (error: any) {
+      console.error("createFirstAdmin Error:", error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    setCurrentUser(null);
+    localStorage.removeItem('sei_session');
+    localStorage.removeItem('token');
+    // await supabase.auth.signOut();
+  };
+
+  const updateSettings = async (s: Partial<SchoolSettings>) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'settings')) {
+      alert('Acesso Negado: Apenas Administradores de TI podem alterar as configurações.');
+      return;
+    }
+    const newSettings = { ...data.settings, ...s };
+    setData(prev => ({ ...prev, settings: newSettings }));
+    try {
+      await api.put('/settings/1', newSettings);
+    } catch (e) { }
+  };
+
+  const updateAcademicYearConfig = async (config: AcademicYearConfig) => {
+    // Função para validar se a data é razoável (evita anos como 42026)
+    const validateDate = (dateStr: string | null) => {
+      if (!dateStr) return null;
+      const year = parseInt(dateStr.split('-')[0]);
+      if (year < 2000 || year > 2100) return null;
+      return dateStr;
+    };
+
+    const sanitizedConfig = {
+      year: config.year,
+      b1End: validateDate(config.b1End),
+      b2End: validateDate(config.b2End),
+      b3End: validateDate(config.b3End),
+      b4End: validateDate(config.b4End),
+      recStart: validateDate(config.recStart),
+      recEnd: validateDate(config.recEnd),
+    };
+
+    if (!currentUser || !can(currentUser.role, 'update', 'academic_years')) {
+      alert('Acesso Negado: Apenas Administradores de TI podem alterar o calendário.');
+      return;
+    }
+
+    console.log("Saving sanitized config:", sanitizedConfig);
+
+    await api.post('/academic-years', sanitizedConfig); // API should handle upsert
+
+    // if (error) block removed as API throws on error
 
 
-  setData(prev => {
-    const exists = prev.academicYears.find(y => y.year === config.year);
-    if (exists) {
+    setData(prev => {
+      const exists = prev.academicYears.find(y => y.year === config.year);
+      if (exists) {
+        return {
+          ...prev,
+          academicYears: prev.academicYears.map(y => y.year === config.year ? sanitizedConfig : y)
+        } as SchoolData;
+      }
       return {
         ...prev,
-        academicYears: prev.academicYears.map(y => y.year === config.year ? sanitizedConfig : y)
+        academicYears: [...prev.academicYears, sanitizedConfig]
       } as SchoolData;
+    });
+  };
+
+  const genericAdd = async (tableKey: keyof SchoolData, item: any) => {
+    if (!currentUser || !can(currentUser.role, 'create', tableKey as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
     }
-    return {
+    console.log(`[GenericAdd] Call: /${TABLE_MAP[tableKey]}, payload:`, item);
+    const { data: res } = await api.post(`/${TABLE_MAP[tableKey]}`, item);
+    console.log(`[GenericAdd] Success:`, res);
+    if (res) setData(prev => ({ ...prev, [tableKey]: [...(prev[tableKey] as any[]), res] }));
+  };
+
+  const genericUpdate = async (tableKey: keyof SchoolData, id: string, item: any) => {
+    if (!currentUser || !can(currentUser.role, 'update', tableKey as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
+    }
+    await api.put(`/${TABLE_MAP[tableKey]}/${id}`, item);
+    setData(prev => ({
       ...prev,
-      academicYears: [...prev.academicYears, sanitizedConfig]
-    } as SchoolData;
-  });
-};
+      [tableKey]: (prev[tableKey] as any[]).map(i => i.id === id ? { ...i, ...item } : i)
+    }));
+  };
 
-const genericAdd = async (tableKey: keyof SchoolData, item: any) => {
-  if (!currentUser || !can(currentUser.role, 'create', tableKey as ResourceType)) {
-    alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
-    return;
-  }
-  console.log(`[GenericAdd] Call: /${TABLE_MAP[tableKey]}, payload:`, item);
-  const { data: res } = await api.post(`/${TABLE_MAP[tableKey]}`, item);
-  console.log(`[GenericAdd] Success:`, res);
-  if (res) setData(prev => ({ ...prev, [tableKey]: [...(prev[tableKey] as any[]), res] }));
-};
+  const addStudent = (s: any) => genericAdd('students', { ...s, registrationNumber: `RA${new Date().getFullYear()}${Math.floor(Math.random() * 1000000)}` });
+  const updateStudent = (id: string, s: any) => genericUpdate('students', id, s);
+  const addTeacher = (t: any) => genericAdd('teachers', t);
+  const updateTeacher = (id: string, t: any) => genericUpdate('teachers', id, t);
+  const addSubject = (s: any) => genericAdd('subjects', s);
+  const updateSubject = (id: string, s: any) => genericUpdate('subjects', id, s);
+  const addClass = (c: any) => genericAdd('classes', c);
+  const updateClass = (id: string, c: any) => genericUpdate('classes', id, c);
+  const addFormation = (f: any) => genericAdd('formations', f);
+  const updateFormation = (id: string, f: any) => genericUpdate('formations', id, f);
+  const addKnowledgeArea = (a: any) => genericAdd('knowledgeAreas', a);
+  const updateKnowledgeArea = (id: string, a: any) => genericUpdate('knowledgeAreas', id, a);
+  const addSubArea = (s: any) => genericAdd('subAreas', s);
+  const updateSubArea = (id: string, s: Partial<SubArea>) => genericUpdate('subAreas', id, s);
+  const assignTeacher = (a: any) => genericAdd('assignments', a);
+  const addUser = async (u: any) => {
+    if (!currentUser || !can(currentUser.role, 'create', 'users')) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
+    }
+    try {
+      const { data: res } = await api.post('/auth/register', u);
+      if (res) setData(prev => ({ ...prev, users: [...prev.users, res.user] }));
+    } catch (err: any) {
+      console.error("Register Error:", err);
+      alert("Erro ao cadastrar usuário: " + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
 
-const genericUpdate = async (tableKey: keyof SchoolData, id: string, item: any) => {
-  if (!currentUser || !can(currentUser.role, 'update', tableKey as ResourceType)) {
-    alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
-    return;
-  }
-  await api.put(`/${TABLE_MAP[tableKey]}/${id}`, item);
-  setData(prev => ({
-    ...prev,
-    [tableKey]: (prev[tableKey] as any[]).map(i => i.id === id ? { ...i, ...item } : i)
-  }));
-};
+  const updateGrade = async (g: any) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
+      alert('Acesso Negado: Você não tem permissão para alterar notas.');
+      return;
+    }
+    await api.post('/grades', g); // Upsert logic in backend
+    await fetchData();
+  };
 
-const addStudent = (s: any) => genericAdd('students', { ...s, registrationNumber: `RA${new Date().getFullYear()}${Math.floor(Math.random() * 1000000)}` });
-const updateStudent = (id: string, s: any) => genericUpdate('students', id, s);
-const addTeacher = (t: any) => genericAdd('teachers', t);
-const updateTeacher = (id: string, t: any) => genericUpdate('teachers', id, t);
-const addSubject = (s: any) => genericAdd('subjects', s);
-const updateSubject = (id: string, s: any) => genericUpdate('subjects', id, s);
-const addClass = (c: any) => genericAdd('classes', c);
-const updateClass = (id: string, c: any) => genericUpdate('classes', id, c);
-const addFormation = (f: any) => genericAdd('formations', f);
-const updateFormation = (id: string, f: any) => genericUpdate('formations', id, f);
-const addKnowledgeArea = (a: any) => genericAdd('knowledgeAreas', a);
-const updateKnowledgeArea = (id: string, a: any) => genericUpdate('knowledgeAreas', id, a);
-const addSubArea = (s: any) => genericAdd('subAreas', s);
-const updateSubArea = (id: string, s: Partial<SubArea>) => genericUpdate('subAreas', id, s);
-const assignTeacher = (a: any) => genericAdd('assignments', a);
-const addUser = async (u: any) => {
-  if (!currentUser || !can(currentUser.role, 'create', 'users')) {
-    alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
-    return;
-  }
-  try {
-    const { data: res } = await api.post('/auth/register', u);
-    if (res) setData(prev => ({ ...prev, users: [...prev.users, res.user] }));
-  } catch (err: any) {
-    console.error("Register Error:", err);
-    alert("Erro ao cadastrar usuário: " + (err.response?.data?.error || err.message));
-    throw err;
-  }
-};
+  const bulkUpdateGrades = async (grades: any[]) => {
+    if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
+      alert('Acesso Negado: Você não tem permissão para alterar notas.');
+      return;
+    }
+    await api.post('/grades/bulk', { grades });
+    await fetchData();
+  };
 
-const updateGrade = async (g: any) => {
-  if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
-    alert('Acesso Negado: Você não tem permissão para alterar notas.');
-    return;
-  }
-  await api.post('/grades', g); // Upsert logic in backend
-  await fetchData();
-};
+  const deleteItem = async (type: keyof SchoolData, id: string) => {
+    if (!currentUser || !can(currentUser.role, 'delete', type as ResourceType)) {
+      alert('Acesso Negado: Você não tem permissão para excluir este registro.');
+      return;
+    }
+    await api.delete(`/${TABLE_MAP[type]}/${id}`);
+    setData(prev => ({ ...prev, [type]: (prev[type] as any[]).filter(i => i.id !== id) }));
+  };
 
-const bulkUpdateGrades = async (grades: any[]) => {
-  if (!currentUser || !can(currentUser.role, 'update', 'grades')) {
-    alert('Acesso Negado: Você não tem permissão para alterar notas.');
-    return;
-  }
-  await api.post('/grades/bulk', { grades });
-  await fetchData();
-};
+  const value = useMemo(() => ({
+    data, loading, dbError, needsSetup,
+    currentUser, login, logout,
+    updateProfile, fetchData,
+    addStudent, updateStudent, addTeacher, updateTeacher,
+    addSubject, updateSubject, addClass, updateClass,
+    addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
+    addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades,
+    deleteItem, updateSettings, updateAcademicYearConfig, addUser, createFirstAdmin,
+    updatePassword, requestPasswordReset, isSettingPassword, setIsSettingPassword,
+    refreshData: fetchData
+  }), [data, loading, dbError, currentUser, isSettingPassword]);
 
-const deleteItem = async (type: keyof SchoolData, id: string) => {
-  if (!currentUser || !can(currentUser.role, 'delete', type as ResourceType)) {
-    alert('Acesso Negado: Você não tem permissão para excluir este registro.');
-    return;
-  }
-  await api.delete(`/${TABLE_MAP[type]}/${id}`);
-  setData(prev => ({ ...prev, [type]: (prev[type] as any[]).filter(i => i.id !== id) }));
-};
-
-const value = useMemo(() => ({
-  data, loading, dbError, needsSetup,
-  currentUser, login, logout,
-  updateProfile, fetchData,
-  addStudent, updateStudent, addTeacher, updateTeacher,
-  addSubject, updateSubject, addClass, updateClass,
-  addFormation, updateFormation, addKnowledgeArea, updateKnowledgeArea,
-  addSubArea, updateSubArea, assignTeacher, updateGrade, bulkUpdateGrades,
-  deleteItem, updateSettings, updateAcademicYearConfig, addUser, createFirstAdmin,
-  updatePassword, requestPasswordReset, isSettingPassword, setIsSettingPassword,
-  refreshData: fetchData
-}), [data, loading, dbError, currentUser, isSettingPassword]);
-
-return <SchoolContext.Provider value={value}>{children}</SchoolContext.Provider>;
+  return <SchoolContext.Provider value={value}>{children}</SchoolContext.Provider>;
 };
 
 export const useSchool = () => {
