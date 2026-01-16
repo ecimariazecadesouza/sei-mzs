@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes';
 import { createGenericRouter } from './generic.routes';
+import classRoutes from './class.routes';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.use('/auth', authRoutes);
 router.use('/students', createGenericRouter('student'));
 router.use('/teachers', createGenericRouter('teacher'));
 router.use('/subjects', createGenericRouter('subject'));
-router.use('/classes', createGenericRouter('class'));
+router.use('/classes', classRoutes);
 router.use('/assignments', createGenericRouter('assignment'));
 router.use('/grades', createGenericRouter('grade'));
 router.use('/formations', createGenericRouter('formationType')); // Check model name
