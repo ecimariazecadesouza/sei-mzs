@@ -6,6 +6,9 @@ export class GenericController {
 
     constructor(modelName: string) {
         this.model = (prisma as any)[modelName];
+        if (!this.model) {
+            console.error(`[GenericController] MODEL NOT FOUND: ${modelName}. Check prisma client and model names.`);
+        }
     }
 
     async getAll(req: Request, res: Response) {
