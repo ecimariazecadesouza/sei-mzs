@@ -7,7 +7,7 @@ const authController = new AuthController();
 
 router.get('/setup-status', authController.setupStatus);
 router.post('/setup-admin', authController.setupAdmin);
-router.post('/register', authController.register);
+router.post('/register', authMiddleware, authController.register);
 router.post('/login', authController.login);
 router.get('/me', authMiddleware, authController.me);
 

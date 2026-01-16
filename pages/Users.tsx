@@ -8,6 +8,7 @@ const Users: React.FC = () => {
   const { data, addUser, deleteItem, currentUser, requestPasswordReset } = useSchool();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('prof');
   const [loading, setLoading] = useState(false);
 
@@ -15,9 +16,14 @@ const Users: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await addUser({ email: email.toLowerCase().trim(), name: name.toUpperCase().trim(), role });
+      await addUser({
+        email: email.toLowerCase().trim(),
+        name: name.toUpperCase().trim(),
+        role,
+        password
+      });
       alert("Acesso autorizado com sucesso!");
-      setEmail(''); setName(''); setRole('prof');
+      setEmail(''); setName(''); setPassword(''); setRole('prof');
     } catch (e) {
       alert("Erro ao adicionar usuário.");
     } finally {
@@ -64,6 +70,11 @@ const Users: React.FC = () => {
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Colaborador</label>
               <input required value={name} onChange={e => setName(e.target.value)} placeholder="NOME COMPLETO" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white font-bold text-slate-700 uppercase" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
+              <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:bg-white font-bold text-slate-700" />
             </div>
 
             <div className="space-y-1.5">

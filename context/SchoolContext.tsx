@@ -345,7 +345,20 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addSubArea = (s: any) => genericAdd('subAreas', s);
   const updateSubArea = (id: string, s: Partial<SubArea>) => genericUpdate('subAreas', id, s);
   const assignTeacher = (a: any) => genericAdd('assignments', a);
-  const addUser = (u: any) => genericAdd('users', u);
+  const addUser = async (u: any) => {
+    if (!currentUser || !can(currentUser.role, 'create', 'users')) {
+      alert('Acesso Negado: Você não tem permissão para realizar esta ação.');
+      return;
+    }
+    try {
+      const { data: res } = await api.post('/auth/register', u);
+      if (res) setData(prev => ({ ...prev, users: [...prev.users, res.user] }));
+    } catch (err: any) {
+      console.error("Register Error:", err);
+      alert("Erro ao cadastrar usuário: " + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
 
   const updateGrade = async (g: any) => {
     if (!currentUser || !can(currentUser.role, 'update', 'grades')) {

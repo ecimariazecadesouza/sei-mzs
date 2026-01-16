@@ -6,6 +6,7 @@ export interface AppUser {
   email: string;
   name: string;
   role: UserRole;
+  password?: string;
   avatarUrl?: string;
 }
 

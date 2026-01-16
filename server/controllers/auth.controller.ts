@@ -56,6 +56,11 @@ export class AuthController {
         const { email, password, name, role } = req.body;
 
         try {
+            // Only admin_ti can create new users
+            if ((req as any).userRole !== 'admin_ti') {
+                return res.status(403).json({ error: 'Access denied: only admin_ti can register new users' });
+            }
+
             const userExists = await prisma.user.findUnique({
                 where: { email },
             });
