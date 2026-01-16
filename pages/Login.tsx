@@ -361,24 +361,6 @@ CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="h-px bg-slate-100 flex-1"></div>
-            <span className="text-[10px] font-black text-slate-300 uppercase">Ou acesse via</span>
-            <div className="h-px bg-slate-100 flex-1"></div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => setEmail('professor@gmail.com')} className="flex items-center justify-center gap-3 py-4 bg-white border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
-              <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" className="w-5 h-5" alt="Google" />
-              <span className="text-[10px] font-black text-slate-600 uppercase">Google</span>
-            </button>
-            <button onClick={() => setEmail('secretaria@outlook.com')} className="flex items-center justify-center gap-3 py-4 bg-white border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" className="w-5 h-5" alt="MS" />
-              <span className="text-[10px] font-black text-slate-600 uppercase">Microsoft</span>
-            </button>
-          </div>
-        </div>
 
         <p className="text-center text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-relaxed">
           Acesso restrito para colaboradores autorizados.<br />
