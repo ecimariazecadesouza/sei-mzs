@@ -3,13 +3,14 @@ import authRoutes from './auth.routes';
 import { createGenericRouter } from './generic.routes';
 import classRoutes from './class.routes';
 import gradeRoutes from './grade.routes';
+import studentRoutes from './student.routes';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
 
 // Generic Routes
-router.use('/students', createGenericRouter('student'));
+router.use('/students', studentRoutes);
 router.use('/teachers', createGenericRouter('teacher'));
 router.use('/subjects', createGenericRouter('subject'));
 router.use('/classes', classRoutes);

@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 
 // server/routes/index.ts
-import { Router as Router5 } from "express";
+import { Router as Router6 } from "express";
 
 // server/routes/auth.routes.ts
 import { Router } from "express";
@@ -237,15 +237,15 @@ var GenericController = class {
 
 // server/routes/generic.routes.ts
 var createGenericRouter = (modelName) => {
-  const router5 = Router2();
-  const controller3 = new GenericController(modelName);
-  router5.use(authMiddleware);
-  router5.get("/", (req, res) => controller3.getAll(req, res));
-  router5.get("/:id", (req, res) => controller3.getOne(req, res));
-  router5.post("/", (req, res) => controller3.create(req, res));
-  router5.put("/:id", (req, res) => controller3.update(req, res));
-  router5.delete("/:id", (req, res) => controller3.delete(req, res));
-  return router5;
+  const router6 = Router2();
+  const controller4 = new GenericController(modelName);
+  router6.use(authMiddleware);
+  router6.get("/", (req, res) => controller4.getAll(req, res));
+  router6.get("/:id", (req, res) => controller4.getOne(req, res));
+  router6.post("/", (req, res) => controller4.create(req, res));
+  router6.put("/:id", (req, res) => controller4.update(req, res));
+  router6.delete("/:id", (req, res) => controller4.delete(req, res));
+  return router6;
 };
 
 // server/routes/class.routes.ts
@@ -484,22 +484,90 @@ router3.put("/:id", (req, res) => controller2.update(req, res));
 router3.delete("/:id", (req, res) => controller2.delete(req, res));
 var grade_routes_default = router3;
 
-// server/routes/index.ts
+// server/routes/student.routes.ts
+import { Router as Router5 } from "express";
+
+// server/controllers/student.controller.ts
+var StudentController = class {
+  async getAll(req, res) {
+    try {
+      const students = await prisma.student.findMany();
+      return res.json(students);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Failed to fetch students" });
+    }
+  }
+  async getOne(req, res) {
+    const { id } = req.params;
+    try {
+      const student = await prisma.student.findUnique({ where: { id } });
+      if (!student) return res.status(404).json({ error: "Student not found" });
+      return res.json(student);
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to fetch student" });
+    }
+  }
+  async create(req, res) {
+    try {
+      const student = await prisma.student.create({ data: req.body });
+      return res.status(201).json(student);
+    } catch (error) {
+      console.error("[StudentController] Create Error:", error);
+      return res.status(500).json({ error: "Failed to create student" });
+    }
+  }
+  async update(req, res) {
+    const { id } = req.params;
+    try {
+      const student = await prisma.student.update({ where: { id }, data: req.body });
+      return res.json(student);
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to update student" });
+    }
+  }
+  async delete(req, res) {
+    const { id } = req.params;
+    try {
+      await prisma.grade.deleteMany({
+        where: { studentId: id }
+      });
+      await prisma.student.delete({ where: { id } });
+      return res.sendStatus(204);
+    } catch (error) {
+      console.error("[StudentController] Delete Error:", error);
+      return res.status(500).json({ error: "Failed to delete student" });
+    }
+  }
+};
+
+// server/routes/student.routes.ts
 var router4 = Router5();
-router4.use("/auth", auth_routes_default);
-router4.use("/students", createGenericRouter("student"));
-router4.use("/teachers", createGenericRouter("teacher"));
-router4.use("/subjects", createGenericRouter("subject"));
-router4.use("/classes", class_routes_default);
-router4.use("/assignments", createGenericRouter("assignment"));
-router4.use("/grades", grade_routes_default);
-router4.use("/formations", createGenericRouter("formationType"));
-router4.use("/knowledge-areas", createGenericRouter("knowledgeArea"));
-router4.use("/sub-areas", createGenericRouter("subArea"));
-router4.use("/settings", createGenericRouter("schoolSettings"));
-router4.use("/academic-years", createGenericRouter("academicYearConfig"));
-router4.use("/users", createGenericRouter("user"));
-var routes_default = router4;
+var controller3 = new StudentController();
+router4.use(authMiddleware);
+router4.get("/", (req, res) => controller3.getAll(req, res));
+router4.get("/:id", (req, res) => controller3.getOne(req, res));
+router4.post("/", (req, res) => controller3.create(req, res));
+router4.put("/:id", (req, res) => controller3.update(req, res));
+router4.delete("/:id", (req, res) => controller3.delete(req, res));
+var student_routes_default = router4;
+
+// server/routes/index.ts
+var router5 = Router6();
+router5.use("/auth", auth_routes_default);
+router5.use("/students", student_routes_default);
+router5.use("/teachers", createGenericRouter("teacher"));
+router5.use("/subjects", createGenericRouter("subject"));
+router5.use("/classes", class_routes_default);
+router5.use("/assignments", createGenericRouter("assignment"));
+router5.use("/grades", grade_routes_default);
+router5.use("/formations", createGenericRouter("formationType"));
+router5.use("/knowledge-areas", createGenericRouter("knowledgeArea"));
+router5.use("/sub-areas", createGenericRouter("subArea"));
+router5.use("/settings", createGenericRouter("schoolSettings"));
+router5.use("/academic-years", createGenericRouter("academicYearConfig"));
+router5.use("/users", createGenericRouter("user"));
+var routes_default = router5;
 
 // server/index.ts
 dotenv.config();
