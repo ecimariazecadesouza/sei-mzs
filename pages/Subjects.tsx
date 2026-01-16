@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Subject } from '../types';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Copy } from 'lucide-react';
 import { sortSubjects } from '../lib/sorting';
 
 const Subjects: React.FC = () => {
@@ -75,6 +75,32 @@ const Subjects: React.FC = () => {
       if (area) setFormationId(area.formationTypeId);
     }
 
+    setIsFormOpen(true);
+  };
+
+  const handleDuplicate = (sub: Subject) => {
+    // Limpa o ID para criar um novo registro
+    setEditingId(null);
+
+    // Preenche o formulário com os dados da disciplina existente
+    setName(sub.name);
+    setSubAreaId(sub.subAreaId);
+    setPeriodicity(sub.periodicity);
+    setCode(sub.code || '');
+    setColor(sub.color || '#3b82f6');
+
+    // Configura o ano (pode ser o mesmo ou o usuário muda no form)
+    setYear(sub.year);
+
+    // Configura os selects em cascata
+    const subArea = data.subAreas.find(s => s.id === sub.subAreaId);
+    if (subArea) {
+      setAreaId(subArea.knowledgeAreaId);
+      const area = data.knowledgeAreas.find(a => a.id === subArea.knowledgeAreaId);
+      if (area) setFormationId(area.formationTypeId);
+    }
+
+    // Abre o formulário como "Novo" (sem editingId)
     setIsFormOpen(true);
   };
 
@@ -290,6 +316,13 @@ const Subjects: React.FC = () => {
                   title="Editar"
                 >
                   <Pencil size={18} />
+                </button>
+                <button
+                  onClick={() => handleDuplicate(sub)}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm"
+                  title="Duplicar"
+                >
+                  <Copy size={18} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm({ id: sub.id, name: sub.name })}
