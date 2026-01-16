@@ -125,8 +125,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       const results = await Promise.allSettled(
         tables.map(async ([stateKey, tableName]) => {
-          // Skip general tables if no users exist (avoid 401)
-          if (setupRes.needsSetup && tableName !== 'users' && tableName !== 'settings') {
+          // Skip ALL generic tables if setup is needed to avoid 401 errors
+          if (setupRes.needsSetup) {
             return { stateKey, data: [] };
           }
           const { data: resData } = await api.get(`/${tableName}`);
@@ -144,8 +144,6 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           } else {
             newData[stateKey as keyof SchoolData] = items;
           }
-        } else {
-          console.error(`Error fetching ${stateKey}:`, result.reason);
         }
       });
       setData(newData);
@@ -217,13 +215,28 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const createFirstAdmin = async (u: { name: string, email: string, password?: string }) => {
-    const { data: res } = await api.post('/auth/setup-admin', u);
-    if (res) {
-      const { user, token } = res;
-      localStorage.setItem('token', token);
-      setData(prev => ({ ...prev, users: [user] }));
-      setCurrentUser(user);
-      await fetchData(); // Fetch all tables now that we are logged in
+    try {
+      const { data: res } = await api.post('/auth/setup-admin', u);
+      if (res) {
+        const { user, token } = res;
+        localStorage.setItem('token', token);
+        // Important: Update state first
+        setCurrentUser(user);
+        setData(prev => ({ ...prev, users: [user] }));
+
+        // Then fetch full data
+        await fetchData();
+
+        // Force a small delay and check if we are redirected, if not, force it
+        setTimeout(() => {
+          if (window.location.pathname !== '/') {
+            window.location.href = '/';
+          }
+        }, 500);
+      }
+    } catch (error: any) {
+      console.error("createFirstAdmin Error:", error);
+      throw error;
     }
   };
 

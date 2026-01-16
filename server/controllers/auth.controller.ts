@@ -127,7 +127,7 @@ export class AuthController {
     async me(req: Request, res: Response) {
         try {
             const user = await prisma.user.findUnique({
-                where: { id: req.userId },
+                where: { id: (req as any).userId },
             });
 
             if (!user) {
