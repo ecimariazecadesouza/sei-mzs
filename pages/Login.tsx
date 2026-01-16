@@ -40,7 +40,11 @@ const Login: React.FC = () => {
     try {
       await createFirstAdmin({ name, email, password });
     } catch (err: any) {
-      setError(err.message || 'Erro ao configurar administrador.');
+      const errorMsg = err.response?.data?.detail
+        ? `${err.message}: ${err.response.data.detail}`
+        : (err.response?.data?.error || err.message || 'Erro ao configurar administrador.');
+      setError(errorMsg);
+      console.error('Frontend Setup Error:', err);
     } finally {
       setIsSetupLoading(false);
     }

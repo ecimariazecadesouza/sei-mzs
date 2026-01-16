@@ -223,6 +223,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       localStorage.setItem('token', token);
       setData(prev => ({ ...prev, users: [user] }));
       setCurrentUser(user);
+      await fetchData(); // Fetch all tables now that we are logged in
     }
   };
 

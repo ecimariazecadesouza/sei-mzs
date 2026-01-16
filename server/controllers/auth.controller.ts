@@ -40,10 +40,15 @@ export class AuthController {
             );
 
             const { password: _, ...userWithoutPassword } = user;
+            console.log('Setup completed successfully for:', email);
             return res.json({ user: userWithoutPassword, token });
-        } catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Setup failed' });
+        } catch (error: any) {
+            console.error('Setup Error Detail:', error);
+            return res.status(500).json({
+                error: 'Setup failed',
+                detail: error.message,
+                code: error.code
+            });
         }
     }
 
