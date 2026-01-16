@@ -163,7 +163,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const token = localStorage.getItem('token');
     if (token) {
       api.get('/auth/me')
-        .then(res => {
+        .then((res: any) => {
           setCurrentUser(res.data.user);
         })
         .catch(() => {

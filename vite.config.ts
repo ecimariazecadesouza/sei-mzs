@@ -13,7 +13,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           charts: ['chart.js', 'react-chartjs-2', 'chartjs-plugin-datalabels'],
-          utils: ['jspdf', 'html2canvas', '@supabase/supabase-js', '@google/genai']
+          utils: ['jspdf', 'html2canvas', '@google/genai']
         }
       }
     }
