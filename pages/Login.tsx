@@ -195,6 +195,17 @@ CREATE POLICY "Public select" ON public.users FOR SELECT USING (true);`}
               />
             </div>
             <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Seu E-mail de Acesso</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="seuemail@provedor.com"
+                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-emerald-300 transition-all shadow-inner"
+              />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Sua Senha Mestra</label>
               <input
                 required
