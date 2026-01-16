@@ -46,11 +46,11 @@ const TABLE_MAP: Record<string, string> = {
   assignments: 'assignments',
   grades: 'grades',
   formations: 'formations',
-  knowledgeAreas: 'knowledge_areas',
-  subAreas: 'sub_areas',
+  knowledgeAreas: 'knowledge-areas',
+  subAreas: 'sub-areas',
   settings: 'settings',
   users: 'users',
-  academicYears: 'academic_years'
+  academicYears: 'academic-years'
 };
 
 export interface SchoolContextType {
